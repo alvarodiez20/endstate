@@ -1,0 +1,83 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "endstate"
+version = "0.0.1"
+description = "An agent harness with evals that grade the end state, not the output."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Álvaro Diez de Pablos", email = "alvarodiez20@gmail.com" }]
+keywords = ["ai-agents", "llm", "evaluation", "llmops", "agent-harness"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = [
+  "pydantic>=2.7",
+  "typer>=0.12",
+  "rich>=13.7",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]
+openai = ["openai>=1.40"]
+all = ["endstate[anthropic,openai]"]
+
+[project.urls]
+Homepage = "https://github.com/alvarodiez20/endstate"
+Repository = "https://github.com/alvarodiez20/endstate"
+Issues = "https://github.com/alvarodiez20/endstate/issues"
+
+[project.scripts]
+endstate = "endstate.cli:app"
+
+[dependency-groups]
+dev = ["pytest>=8.2", "pytest-cov>=5.0", "ruff>=0.6", "mypy>=1.11"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/endstate"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# typer expresses CLI options as call-valued defaults; that is the framework contract.
+"src/endstate/cli.py" = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/endstate"]
+
+[[tool.mypy.overrides]]
+# Provider SDKs are optional extras; the base dev env does not install them.
+module = ["openai.*", "anthropic.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["src/endstate"]
+omit = [
+  # Network adapters: exercised by integration runs, not unit tests. Excluded so
+  # the coverage gate measures logic that is actually testable offline.
+  "src/endstate/providers/anthropic.py",
+  "src/endstate/providers/openai_compat.py",
+  "src/endstate/cli.py",
+]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "raise NotImplementedError", "if TYPE_CHECKING:", "\\.\\.\\."]

@@ -1,0 +1,5 @@
+{
+  "_comment": "USD per million tokens. Supply your own; endstate ships no prices because a wrong cost number is worse than a missing one. Copy to prices.json and edit.",
+  "gpt-4o-mini": { "input_per_mtok": "0.15", "output_per_mtok": "0.60" },
+  "self-hosted-l4": { "input_per_mtok": "0.00", "output_per_mtok": "0.00" }
+}
