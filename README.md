@@ -1,4 +1,4 @@
-# endstate
+<img src="brand/png/endstate-lockup-transparent.png" width="220" alt="endstate">
 
 **An agent harness with evals that grade the end state, not the output.**
 

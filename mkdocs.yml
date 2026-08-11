@@ -11,6 +11,8 @@ copyright: MIT licensed.
 
 theme:
   name: material
+  logo: assets/brand/svg/endstate-mark-white.svg
+  favicon: assets/brand/svg/favicon.svg
   icon:
     repo: fontawesome/brands/github
   features:
@@ -44,6 +46,11 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+
+# The brand folder is copied into docs/ for its images; its README is a usage
+# guide for the assets, not a page of this site.
+exclude_docs: |
+  assets/brand/README.md
 
 plugins:
   - search

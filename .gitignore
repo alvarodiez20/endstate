@@ -16,3 +16,4 @@ site/
 infra/terraform/.terraform/
 infra/terraform/*.tfstate*
 .coverage*
+.DS_Store
