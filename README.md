@@ -15,6 +15,11 @@ pip install endstate
 > **Status: v0.0.1, in development.** The harness works; the eval runner lands in v0.1.0.
 > Follow the [build plan](PLAN.md) for what ships when.
 
+**[Documentation →](https://alvarodiez20.github.io/endstate/)** — including
+[How agents actually work](https://alvarodiez20.github.io/endstate/concepts/), a walk through the
+internals of agent design: the loop, the sandbox boundary, permissioning, context compaction,
+checkpoint durability, and why end-state grading beats grading text.
+
 ---
 
 ## Results

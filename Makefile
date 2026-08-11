@@ -1,4 +1,4 @@
-.PHONY: help install test lint typecheck check build clean gpu-up gpu-down bench
+.PHONY: help install test lint typecheck check build clean docs docs-build gpu-up gpu-down bench
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -22,7 +22,15 @@ build:  ## Build sdist + wheel
 	uv build
 
 clean:  ## Remove build artefacts
-	rm -rf dist build .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage
+	rm -rf dist build site .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage
+
+# --- Docs -----------------------------------------------------------------
+
+docs:  ## Serve the docs locally with live reload
+	uv run --group docs mkdocs serve
+
+docs-build:  ## Build the docs the way CI does (warnings are errors)
+	uv run --group docs mkdocs build --strict
 
 # --- Infrastructure -------------------------------------------------------
 # `gpu-down` exists before `gpu-up` on purpose. A forgotten node pool costs

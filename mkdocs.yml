@@ -1,0 +1,116 @@
+site_name: endstate
+site_description: An agent harness with evals that grade the end state, not the output.
+site_url: https://alvarodiez20.github.io/endstate/
+site_author: Álvaro Diez de Pablos
+
+repo_url: https://github.com/alvarodiez20/endstate
+repo_name: alvarodiez20/endstate
+edit_uri: edit/main/docs/
+
+copyright: MIT licensed.
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Follow system theme
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_root_heading: true
+            show_source: true
+            show_signature_annotations: true
+            separate_signature: true
+            docstring_style: google
+            members_order: source
+            filters: ["!^_"]
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/alvarodiez20/endstate
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/endstate/
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: getting-started/installation.md
+      - Your first run: getting-started/first-run.md
+      - Resuming a run: getting-started/resuming.md
+  - Concepts:
+      - How agents actually work: concepts/index.md
+      - The loop: concepts/the-loop.md
+      - Messages and providers: concepts/messages-and-providers.md
+      - Tools and the sandbox: concepts/tools-and-sandbox.md
+      - Permissions and refusal: concepts/permissions.md
+      - Context and compaction: concepts/context-and-compaction.md
+      - Durability and resume: concepts/durability.md
+      - Cost and telemetry: concepts/cost-and-telemetry.md
+      - Evaluation: concepts/evaluation.md
+  - Guides:
+      - Write a custom tool: guides/custom-tool.md
+      - Write a permission policy: guides/permission-policy.md
+      - Use a self-hosted model: guides/self-hosted-models.md
+      - Price a model: guides/pricing.md
+  - Reference:
+      - CLI: reference/cli.md
+      - Python API: reference/api.md
+  - Design:
+      - Decision log: design/decisions.md
+      - Non-goals: design/non-goals.md
