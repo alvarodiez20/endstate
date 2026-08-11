@@ -1,17 +1,44 @@
 name: release
 
+# Publishing to PyPI is deliberate, never automatic. The `version` workflow tags
+# every release, but a PyPI version number is burned permanently and cannot be
+# re-uploaded, so shipping one stays a decision a human makes.
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish, e.g. v0.1.0"
+        required: true
+        type: string
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
-      id-token: write   # PyPI Trusted Publishing — no API tokens anywhere
+      id-token: write # PyPI Trusted Publishing — no API tokens anywhere
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: astral-sh/setup-uv@v6
+
+      # The tag is the source of truth for what gets shipped. Building from it
+      # rather than from a stored artifact means what lands on PyPI is exactly
+      # what that tag contains.
       - run: uv build
+
+      - name: Check the built version matches the tag
+        run: |
+          built=$(ls dist/*.whl | sed -E 's/.*endstate-([^-]+)-.*/\1/')
+          expected="${TAG#v}"
+          if [ "$built" != "$expected" ]; then
+            echo "::error::tag $TAG builds version $built, not $expected"
+            exit 1
+          fi
+          echo "publishing $built"
+        env:
+          TAG: ${{ inputs.tag }}
+
       - uses: pypa/gh-action-pypi-publish@release/v1

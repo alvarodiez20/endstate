@@ -5,7 +5,6 @@ site_author: Álvaro Diez de Pablos
 
 repo_url: https://github.com/alvarodiez20/endstate
 repo_name: alvarodiez20/endstate
-edit_uri: edit/main/docs/
 
 copyright: MIT licensed.
 
@@ -23,7 +22,6 @@ theme:
     - navigation.footer
     - content.code.copy
     - content.code.annotate
-    - content.action.edit
     - search.suggest
     - search.highlight
     - toc.follow
