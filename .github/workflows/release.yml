@@ -1,37 +1,85 @@
 name: release
 
-# Publishing to PyPI is deliberate, never automatic. The `version` workflow tags
-# every release, but a PyPI version number is burned permanently and cannot be
-# re-uploaded, so shipping one stays a decision a human makes.
+# The release pipeline: version, tag, publish.
+#
+# Runs only after `ci` has gone green on main. Versioning a commit whose tests
+# never passed would make the tag a worse signal than the commit it points at,
+# and publishing one would put it in front of users.
+#
+# Kept in this file rather than split across two because PyPI's trusted
+# publisher is bound to a workflow *filename*. Publishing from anywhere else
+# fails the OIDC check.
 on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish, e.g. v0.1.0"
-        required: true
+        description: "Re-publish an existing tag to PyPI, skipping versioning (e.g. v0.1.0)"
+        required: false
         type: string
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  publish:
+  # Conventional Commits decide the bump. A push of only docs or chore commits
+  # produces no release, and the publish job below is skipped with it.
+  version:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # the version commit, the tag, the GitHub Release
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history: the bump is computed from every commit since the last
+          # tag, and a shallow clone silently sees none of them.
+          fetch-depth: 0
+          ref: main
+
+      - uses: python-semantic-release/python-semantic-release@v9.21.2
+        id: release
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: version
+    # Two ways in: a bump just happened, or a tag was named by hand.
+    if: >
+      always() &&
+      needs.version.result != 'failure' &&
+      needs.version.result != 'cancelled' &&
+      (needs.version.outputs.released == 'true' || inputs.tag != '')
+    runs-on: ubuntu-latest
+    # Add a required reviewer to this environment to turn the publish into a
+    # manual gate without changing any of this.
     environment: pypi
     permissions:
       id-token: write # PyPI Trusted Publishing — no API tokens anywhere
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.tag }}
+          # The tag is the source of truth for what ships. Building from it
+          # rather than from the branch means what lands on PyPI is exactly what
+          # that tag contains.
+          ref: ${{ needs.version.outputs.tag || inputs.tag }}
 
       - uses: astral-sh/setup-uv@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # The tag is the source of truth for what gets shipped. Building from it
-      # rather than from a stored artifact means what lands on PyPI is exactly
-      # what that tag contains.
       - run: uv build
 
       - name: Check the built version matches the tag
+        env:
+          TAG: ${{ needs.version.outputs.tag || inputs.tag }}
         run: |
           built=$(ls dist/*.whl | sed -E 's/.*endstate-([^-]+)-.*/\1/')
           expected="${TAG#v}"
@@ -39,8 +87,10 @@ jobs:
             echo "::error::tag $TAG builds version $built, not $expected"
             exit 1
           fi
-          echo "publishing $built"
-        env:
-          TAG: ${{ inputs.tag }}
+          echo "publishing $built from $TAG"
 
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # A PyPI version can never be re-uploaded. On a re-run, skip what is
+          # already there rather than failing the job on a conflict.
+          skip-existing: true

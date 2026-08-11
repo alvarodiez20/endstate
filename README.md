@@ -109,8 +109,8 @@ make check
 
 Trunk-based: short-lived branches cut from `main`, linear history, no merge commits. Versions are
 derived from [Conventional Commits](https://www.conventionalcommits.org/) — `feat:` bumps the minor,
-`fix:` the patch, and anything else lands without consuming a version. CI tags and cuts the GitHub
-Release; publishing to PyPI stays a deliberate act.
+`fix:` the patch, and anything else lands without consuming a version. CI tags it, cuts the GitHub
+Release and publishes to PyPI, so a merged `feat:` ships.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 

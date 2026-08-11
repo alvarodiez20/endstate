@@ -68,13 +68,25 @@ titles too — a PR titled "Fix the thing" produces no release no matter what it
 
 1. `ci` runs the gates on 3.11, 3.12 and 3.13: ruff, `ruff format --check`, `mypy --strict`, pytest,
    coverage ≥ 85%.
-2. If CI passes on `main`, `version` computes the bump from the commits since the last tag. If there
+2. If CI passes on `main`, `release` computes the bump from the commits since the last tag. If there
    is one, it updates `__version__`, writes `CHANGELOG.md`, commits, tags, and cuts a GitHub Release.
-3. `docs` rebuilds and deploys the site.
+3. If a release was cut, the same workflow builds from that tag and publishes to PyPI via Trusted
+   Publishing. The build's version is checked against the tag first.
+4. `docs` rebuilds and deploys the site.
 
-Publishing to PyPI is **not** automatic. Run the `release` workflow by hand with the tag you want to
-ship. PyPI version numbers are burned permanently, so that stays a decision rather than a side
-effect.
+So a merged `feat:` or `fix:` reaches PyPI without anyone pressing anything. Two consequences worth
+holding in mind:
+
+- **A PyPI version number can never be reused.** Not after a yank, not after a delete. If a bad
+  release ships, the fix is `0.1.1`, not a re-upload of `0.1.0`.
+- **Commit messages are now a release mechanism.** `fix:` on a branch that is not ready ships that
+  code. `chore:` or `refactor:` land safely without a version.
+
+To put a human in the loop without changing any workflow, add a required reviewer to the `pypi`
+environment in repository settings — the publish job will then wait for approval.
+
+To re-publish an existing tag (a failed upload, a transient PyPI outage), run the `release` workflow
+manually and give it the tag.
 
 ## Before you push
 
