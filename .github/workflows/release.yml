@@ -23,6 +23,8 @@ jobs:
           ref: ${{ inputs.tag }}
 
       - uses: astral-sh/setup-uv@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # The tag is the source of truth for what gets shipped. Building from it
       # rather than from a stored artifact means what lands on PyPI is exactly
