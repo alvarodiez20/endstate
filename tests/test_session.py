@@ -36,3 +36,9 @@ def test_sessions_are_listed_newest_first(tmp_path: Path) -> None:
     store = SessionStore(tmp_path / "s.sqlite3")
     ids = [store.create().id for _ in range(3)]
     assert set(store.list_sessions()) == set(ids)
+
+
+def test_checkpoint_last_on_an_empty_session_raises(tmp_path: Path) -> None:
+    session = SessionStore(tmp_path / "s.sqlite3").create()
+    with pytest.raises(IndexError):
+        session.checkpoint_last()

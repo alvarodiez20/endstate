@@ -66,25 +66,47 @@ not happen and there is nothing to undo. The ambiguous middle is gone.
 
 The general form: **never persist an intention as though it were a fact.** Persist outcomes.
 
-!!! danger "Known gap at v0.0.1"
+## How the harness applies it
 
-    The loop does not fully implement D8 yet. The assistant message is checkpointed *before* its
-    tool calls execute
-    ([`loop.py`](https://github.com/alvarodiez20/endstate/blob/main/src/endstate/agent/loop.py)),
-    so a crash between the provider response and tool execution leaves a session whose last message
-    contains `tool_calls` with no matching `tool_results` — malformed under both the Anthropic and
-    OpenAI contracts.
+Two mechanisms, both visible in
+[`loop.py`](https://github.com/alvarodiez20/endstate/blob/main/src/endstate/agent/loop.py).
 
-    A second gap: results for a batch of tool calls are recorded as a single message *after the whole
-    batch*. Crash after tool 2 of 3 and the session has no record that tools 1 and 2 already ran,
-    while their side effects are on disk.
+**Results are persisted per call, not per batch.** A model can request several tools in one turn.
+Writing all their results at the end would mean a crash after the second of three left no record
+that the first two had run — while their side effects were already on disk. Instead each result is
+written as it lands, rewriting the tool message at the same step. `SessionStore` keys messages on
+`(session_id, step)` with `INSERT OR REPLACE`, so this needs no extra rows and no schema change.
 
-    Closing both is M1 of the
-    [engineering plan](https://github.com/alvarodiez20/endstate/blob/main/PLAN.md). Until then,
-    `--resume` reliably restores conversation history but does not guarantee end-state equivalence
-    with an uninterrupted run.
+**Resume reconciles outstanding calls.** The assistant message is persisted *before* its tools run —
+necessarily, because it is the only record of what was requested. That leaves a transient window
+where the history contains `tool_calls` with no matching `tool_results`, which is malformed under
+both the Anthropic and OpenAI contracts. So resume repairs it before doing anything else: it finds
+calls with no recorded result, executes exactly those, and only then continues the loop.
 
-    These docs would be worth less if they described the intended design as though it were finished.
+```python
+def _pending(self, messages):
+    last = messages[-1]
+    if last.role == "assistant" and last.tool_calls:
+        return list(last.tool_calls), False          # crashed before any tool ran
+    if last.role == "tool":
+        requested = messages[-2]
+        done = {r.call_id for r in last.tool_results}
+        return [c for c in requested.tool_calls if c.id not in done], True   # crashed mid-batch
+    return [], False
+```
+
+Note that `run()` settles pending calls *before* appending a new user message. Adding the
+instruction first would bury the unfinished batch mid-history, where nothing would ever complete it.
+
+!!! note "The window that cannot be closed"
+
+    A crash *inside* a tool call — after the side effect, before any record of it — is irreducible
+    without transactional side effects. The harness narrows the ambiguity from a whole batch to a
+    single call, and then re-runs that call on resume.
+
+    That converges exactly when the tool is idempotent. `write` is; a tool that appends, or one that
+    runs `git commit`, is not. The test suite covers this case explicitly rather than pretending it
+    away.
 
 ## How you prove resume works
 
@@ -101,24 +123,48 @@ So the test compares filesystems:
 5. Repeat for randomised values of *k*.
 
 `RunResult.tree_hash()` — a deterministic hash of the sandbox after a run — is the primitive that
-makes this expressible. It is also what the [recovery eval category](evaluation.md) grades on.
+makes this expressible. It ignores mtimes and inode numbers, records the executable bit, and hashes
+symlinks as their target text rather than following them. It is also what the
+[recovery eval category](evaluation.md) grades on.
 
-*(Both planned for M1. `tree_hash()` does not exist yet.)*
+`tests/test_recovery.py` runs exactly the procedure above at every kill point in a six-call run, in
+both variants: killed *before* the side effect, and killed *after* it.
 
 Note that this is the same shape as the whole project's thesis: the assertion is about the end state,
 not about what was said.
+
+### And how you know the test is real
+
+Both guards were checked by removing them, per
+[the mutation argument](evaluation.md#the-mutation-check):
+
+| Guard removed | Result |
+| --- | --- |
+| Resume reconciliation | 11 of 20 tests fail, including every kill point |
+| Per-call persistence | 1 test fails — the one that inspects the session mid-batch |
+
+The second row is worth dwelling on. Batch-only persistence is *invisible* in the end state when
+tools are idempotent, because losing the record of a completed call just means resume re-runs it and
+lands in the same place. It shows up only in the recorded history — and it would show up in the end
+state the moment a non-idempotent tool was involved.
 
 ## Resume is not the same as continue
 
 A subtlety worth naming, because the CLI surface makes it easy to miss.
 
-Restoring a session's message history is easy. But an interrupted run needs to *continue from where
-it stopped* — with pending tool calls resolved and no new instruction. Today `--resume` loads the
-session and then takes a new prompt, which is "carry on with this conversation," a genuinely useful
-thing, but not the same as "finish what you were doing."
+Restoring a session's message history is easy. Finishing an interrupted run is not: it means
+resolving pending tool calls and carrying on *without* a new instruction. Both are useful, and
+`endstate run` distinguishes them by whether you pass a prompt:
 
-The distinction only shows up under a real crash, which is why the randomised kill-point test is the
-acceptance criterion for M1 rather than a nice-to-have.
+```bash
+endstate run --resume <session-id>              # finish what it was doing
+```
+
+```bash
+endstate run "now add a test" --resume <session-id>   # continue the conversation
+```
+
+The second form settles any outstanding calls first, then takes the new instruction.
 
 ## What to check in your own agent
 

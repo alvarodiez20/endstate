@@ -80,8 +80,8 @@ Everything else in the tool layer is defence in depth behind this boundary.
 Re-applying an already-applied side effect on resume is the classic bug. Persist outcomes, never
 intentions.
 
-Not yet fully implemented — see the
-[known gap](../concepts/durability.md#the-ordering-rule-that-matters).
+Applied at per-call granularity rather than per batch, with resume reconciling anything left
+outstanding. See [how the harness applies it](../concepts/durability.md#how-the-harness-applies-it).
 
 ---
 

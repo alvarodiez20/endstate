@@ -20,12 +20,25 @@ ordinary SQLite file — open it with any client if you want to read the raw mes
 
 ## Resume
 
+Two forms, and the difference matters.
+
+**Finish an interrupted run** — omit the prompt:
+
 ```bash
-endstate run "continue" --resume a3f9c211d4e0 --workdir /tmp/endstate-demo
+endstate run --resume a3f9c211d4e0 --workdir /tmp/endstate-demo
 ```
 
-The stored history is loaded, your new prompt is appended, and the run continues with full knowledge
-of what happened before.
+Any tool calls that were requested but never executed are run first, then the agent carries on. No
+new instruction is added; it picks up what it was doing.
+
+**Continue the conversation** — pass a prompt:
+
+```bash
+endstate run "now add a test for the edge case" --resume a3f9c211d4e0 --workdir /tmp/endstate-demo
+```
+
+The stored history is loaded, any outstanding calls are settled, then your prompt is appended and the
+run continues with full knowledge of what happened before.
 
 Pass the same `--workdir` you used originally. The session stores the conversation, not the
 filesystem — point it somewhere else and the agent will be reasoning about files that are not there.
@@ -40,23 +53,26 @@ disk; you keep the work rather than paying for it twice.
 **Inspecting what happened.** The session is a queryable record of every message, including tool calls
 and their results.
 
-## The honest limitation
+## The one case to know about
 
-!!! warning "Resume restores the conversation, not guaranteed end-state equivalence"
+A killed-and-resumed run reaches the same end state as an uninterrupted one — that is verified at
+every kill point in the test suite, by comparing hashes of the sandbox rather than by reading the
+transcript.
 
-    At v0.0.1, `--resume` reliably restores message history. It does **not** yet guarantee that a
-    killed-and-resumed run reaches the same end state as an uninterrupted one.
+The exception is narrow and worth knowing:
 
-    The gap is in checkpoint ordering: an assistant message is persisted *before* its tool calls run,
-    so a crash in that window leaves a session recording an intention with no recorded outcome. The
-    detail is in [Durability and resume](../concepts/durability.md#the-ordering-rule-that-matters).
+!!! note "A crash *inside* a tool call"
 
-    Closing it — plus `tree_hash()` and a randomised kill-point test that proves it — is M1 of the
-    [engineering plan](https://github.com/alvarodiez20/endstate/blob/main/PLAN.md).
+    If the process dies after a tool's side effect but before anything records it, the only option on
+    resume is to run that call again. Nothing can distinguish "it never ran" from "it ran and the
+    record was lost" — that would need transactional side effects.
 
-In practice: resuming after **Ctrl-C between steps** is fine, which is the common case. Resuming after
-a crash *during* a tool call may leave the agent unaware of a side effect that already landed. If the
-tool was `git commit` or anything else non-idempotent, check the state before continuing.
+    So resume converges when the tool is idempotent. `write` is: writing the same file twice leaves
+    the same bytes. `git commit` is not — you would get two commits.
+
+    In practice, if a run died mid-`bash` and the command was not idempotent, check the state before
+    resuming. Everything else — Ctrl-C between steps, a kill mid-batch, a crash before a tool ran —
+    resumes exactly.
 
 ## Why sessions are SQLite
 

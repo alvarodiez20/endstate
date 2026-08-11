@@ -62,25 +62,43 @@ Each milestone has a **Definition of Done** (binary), **acceptance tests** (exec
 
 ---
 
-### M1 — Harness hardening · Week 1–2 · 6 h
+### M1 — Harness hardening ✅ *core complete*
 
 | | |
 |---|---|
-| **Deliverable** | Resume semantics, streaming output, a second compaction strategy under test, demo GIF |
+| **Deliverable** | Resume semantics that finish an interrupted run, `tree_hash()`, kill-point test suite |
 | **DoD** | A killed run resumes and reaches the same end state as an uninterrupted run |
-| **Acceptance** | `pytest tests/test_recovery.py` — kill at step *k*, resume, assert identical final tree hash |
-| **Metrics** | Resume fidelity = 100 % over 20 randomised kill points |
+| **Acceptance** | `pytest tests/test_recovery.py` — kill at call *k*, resume, assert identical tree hash |
+| **Metrics achieved** | 96 tests · 96 % coverage · resume fidelity 100 % at every kill point, both crash variants |
 
-**Tasks**
+**Shipped in M1**
 
-- [ ] `--resume` wired through CLI with a real integration test
-- [ ] `RunResult.tree_hash()` — deterministic hash of the sandbox after a run
-- [ ] Randomised kill-point test harness (parametrised over step index)
-- [ ] Streaming token output in the CLI (`rich.live`)
-- [ ] Demo GIF via `vhs`, committed to `docs/assets/`
+- `tree.py` — deterministic tree hashing; content not metadata, executable bit included, symlinks
+  recorded rather than followed
+- `RunResult.tree_hash()` — the assertion primitive for end-state grading
+- Per-call result persistence (D8 at call granularity, not batch granularity)
+- `AgentLoop.resume()` — reconciles outstanding tool calls, then continues without a new instruction
+- `endstate run --resume <id>` with no prompt finishes an interrupted run; with a prompt it settles
+  first, then continues the conversation
+- `tests/test_recovery.py` — every kill point × {before, after} the side effect, plus a real
+  `SIGKILL` test for the SQLite durability claim itself
 
-**Risks:** resume correctness is subtler than it looks — tool side effects already applied before the
-crash must not be re-applied. Mitigation: checkpoint *after* the tool result, never before.
+**Mutation check** (each guard removed, suite must notice):
+
+| Guard removed | Tests failing |
+|---|---|
+| Resume reconciliation | 11 of 20 |
+| Per-call persistence | 1 of 20 |
+
+The second row is the finding: with idempotent tools, batch-only persistence is invisible in the end
+state, because losing the record of a completed call just means resume re-runs it to the same place.
+It is only observable in the recorded history — or with a non-idempotent tool.
+
+**Deferred** (cut order items 5 and adjacent, neither blocking): streaming CLI output, demo GIF.
+
+**Known limit:** a crash *inside* a tool call, after the side effect and before any record of it, is
+irreducible without transactional side effects. Resume re-runs the call, which converges iff the tool
+is idempotent. Tracked as the argument for a `Tool.idempotent` flag before M2 graders rely on it.
 
 ---
 

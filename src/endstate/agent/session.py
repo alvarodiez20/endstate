@@ -99,6 +99,18 @@ class Session:
         self.messages.append(message)
         self.store._append(self.id, len(self.messages) - 1, message)
 
+    def checkpoint_last(self) -> None:
+        """Re-persist the final message in place.
+
+        Used while a batch of tool calls is being executed: each result is
+        written as it lands, so a process killed mid-batch leaves a record of
+        exactly the calls that completed. Rewriting the same step keeps one tool
+        message per assistant turn, which is the shape every provider expects.
+        """
+        if not self.messages:
+            raise IndexError("no message to checkpoint")
+        self.store._append(self.id, len(self.messages) - 1, self.messages[-1])
+
     def close(self) -> None:
         self.store._set_status(self.id, "closed")
 

@@ -40,7 +40,9 @@ def version() -> None:
 
 @app.command()
 def run(
-    prompt: str = typer.Argument(..., help="What the agent should do."),
+    prompt: str | None = typer.Argument(
+        None, help="What the agent should do. Omit with --resume to finish an interrupted run."
+    ),
     workdir: Path = typer.Option(Path.cwd(), "--workdir", "-w", help="Sandbox directory."),
     model: str = typer.Option("gpt-4o-mini", "--model", "-m"),
     base_url: str | None = typer.Option(None, "--base-url", help="OpenAI-compatible endpoint."),
@@ -50,6 +52,9 @@ def run(
     resume: str | None = typer.Option(None, "--resume", help="Session id to resume."),
 ) -> None:
     """Run the agent against a working directory."""
+    if prompt is None and resume is None:
+        raise typer.BadParameter("give a prompt, or --resume a session to continue it")
+
     store = SessionStore()
     session = store.resume(resume) if resume else store.create(model=model)
     accountant = CostAccountant(PriceTable.from_file(prices) if prices else None)
@@ -65,7 +70,9 @@ def run(
         max_steps=max_steps,
     )
 
-    result = loop.run(prompt)
+    # No prompt means "finish what you were doing": outstanding tool calls are
+    # executed and the run carries on, rather than a new instruction being added.
+    result = loop.resume() if prompt is None else loop.run(prompt)
     session.close()
 
     console.print(result.final_text or "(no final message)")
