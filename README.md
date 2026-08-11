@@ -1,4 +1,6 @@
-<img src="brand/png/endstate-lockup-transparent.png" width="220" alt="endstate">
+<!-- Absolute URL on purpose: this file is also the PyPI long description, and
+     PyPI does not resolve repo-relative paths. -->
+<img src="https://raw.githubusercontent.com/alvarodiez20/endstate/main/brand/png/endstate-lockup-transparent.png" width="220" alt="endstate">
 
 **An agent harness with evals that grade the end state, not the output.**
 

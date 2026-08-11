@@ -1,4 +1,4 @@
-# endstate
+# ![endstate](assets/brand/svg/endstate-lockup.svg#only-light){ width="260" }![endstate](assets/brand/svg/endstate-lockup-white.svg#only-dark){ width="260" }
 
 **An agent harness with evals that grade the end state, not the output.**
 
