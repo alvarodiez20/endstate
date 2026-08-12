@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+// Serve React from this site rather than unpkg: the docs must not depend on a
+// third-party CDN at page-view time. support.js honours __resources as an
+// override for its pinned CDN URLs (the files are byte-identical to the ones
+// its SRI hashes cover).
+window.__resources = {
+  "https://unpkg.com/react@18.3.1/umd/react.production.min.js": "./vendor/react-18.3.1.production.min.js",
+  "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js": "./vendor/react-dom-18.3.1.production.min.js"
+};
+</script>
+<script src="./support.js"></script>
+<script>
+// Follow the Material palette toggle in the parent page; fall back to the system setting.
+(function () {
+  var current = null;
+  function apply(scheme) {
+    if (scheme !== "light" && scheme !== "dark") return;
+    current = scheme;
+    // Both elements: the stylesheet sets color-scheme on html *and* body, and
+    // light-dark() inside the body resolves against the body's own value.
+    document.documentElement.style.colorScheme = scheme;
+    if (document.body) document.body.style.colorScheme = scheme;
+  }
+  addEventListener("DOMContentLoaded", function () {
+    if (current) apply(current);
+  });
+  var q = new URLSearchParams(location.search).get("theme");
+  if (q) apply(q);
+  addEventListener("message", function (e) {
+    if (e.data && e.data.type === "endstate-theme") apply(e.data.scheme);
+  });
+  addEventListener("load", function () {
+    if (parent !== window) parent.postMessage({ type: "endstate-diagram-ready" }, "*");
+  });
+})();
+</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700%7CRoboto+Mono:400,500,700&display=swap">
+<style>
+  html, body { margin: 0; padding: 0; color-scheme: light dark; background: light-dark(#ffffff, #0d0d0d); }
+  a { color: light-dark(#0f766e, #5eead4); }
+  a:hover { color: light-dark(#0b5c56, #99f6e4); }
+</style>
+</helmet>
+<div style="font-family: Roboto, Helvetica, Arial, sans-serif; color: light-dark(#0d0d0d, #e9e9e9); background: light-dark(#ffffff, #0d0d0d); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <div style="font-size: 19px; font-weight: 500; letter-spacing: -.01em">Context and compaction</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">agent/context.py</div>
+    </div>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; transition: color .35s ease; color: {{ strategyFg }}">{{ strategy }}</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 9px">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; font-family: 'Roboto Mono', monospace; font-size: 11px; color: light-dark(#6b6b6b, #9a9a9a)">
+      <span>max_context_tokens = 128_000</span>
+      <span style="transition: color .35s ease; color: {{ usedFg }}">{{ usedLabel }}</span>
+    </div>
+    <div style="position: relative; height: 12px; border: 1px solid light-dark(#e0e0e0, #2e2e2e); border-radius: 2px; overflow: hidden; background: light-dark(#fafafa, #141414)">
+      <div style="position: absolute; inset: 0 0 0 0; transition: width .6s cubic-bezier(.4,0,.2,1), background .4s ease; width: {{ fillPct }}; background: {{ fillBg }}"></div>
+      <div style="position: absolute; top: 0; bottom: 0; right: 0; width: 6.25%; background: repeating-linear-gradient(45deg, light-dark(#e4e4e4, #262626) 0 3px, transparent 3px 6px); border-left: 1px dashed light-dark(#c4c4c4, #3a3a3a)"></div>
+    </div>
+    <div style="display: flex; justify-content: flex-end; font-family: 'Roboto Mono', monospace; font-size: 10.5px; color: light-dark(#8a8a8a, #6b6b6b)">reserve_output_tokens = 8_000</div>
+  </div>
+
+  <div style="display: flex; gap: 3px; align-items: stretch; height: 92px">
+    <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="9">
+      <div style="border: 1px solid; border-radius: 2px; padding: 7px 6px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; transition: all .55s cubic-bezier(.4,0,.2,1); flex: {{ m.flex }}; border-color: {{ m.line }}; background: {{ m.bg }}; opacity: {{ m.op }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 9.5px; letter-spacing: .02em; white-space: nowrap; color: {{ m.fg }}">{{ m.role }}</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; white-space: nowrap; color: light-dark(#8a8a8a, #6b6b6b)">{{ m.tok }}</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 9px; white-space: nowrap; transition: color .4s ease; color: {{ m.tagFg }}">{{ m.tag }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; transition: opacity .45s ease; opacity: {{ eventOp }}">
+    <div style="border: 1px solid light-dark(#e6e6e6, #262626); border-radius: 3px; padding: 9px 11px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; color: light-dark(#8a8a8a, #6b6b6b)">strategy</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; margin-top: 3px; color: light-dark(#0f766e, #5eead4)">{{ ev.strategy }}</div>
+    </div>
+    <div style="border: 1px solid light-dark(#e6e6e6, #262626); border-radius: 3px; padding: 9px 11px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; color: light-dark(#8a8a8a, #6b6b6b)">tokens_before → after</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; margin-top: 3px">{{ ev.tokens }}</div>
+    </div>
+    <div style="border: 1px solid light-dark(#e6e6e6, #262626); border-radius: 3px; padding: 9px 11px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; color: light-dark(#8a8a8a, #6b6b6b)">dropped_messages</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; margin-top: 3px">{{ ev.dropped }}</div>
+    </div>
+    <div style="border: 1px solid light-dark(#e6e6e6, #262626); border-radius: 3px; padding: 9px 11px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; color: light-dark(#8a8a8a, #6b6b6b)">tokens_reclaimed</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; margin-top: 3px; color: light-dark(#0f766e, #5eead4)">{{ ev.reclaimed }}</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: end; border-top: 1px solid light-dark(#e6e6e6, #262626); padding-top: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#0f766e, #5eead4)">{{ line }}</div>
+      <div style="font-size: 13.5px; line-height: 1.5; min-height: 42px; max-width: 76ch; color: light-dark(#3d3d3d, #b5b5b5); text-wrap: pretty">{{ caption }}</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button onClick="{{ prev }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">←</button>
+      <button onClick="{{ toggle }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 13px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer; min-width: 62px" style-hover="border-color: light-dark(#0f766e, #5eead4)">{{ playLabel }}</button>
+      <button onClick="{{ next }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">→</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:840,&quot;height&quot;:630}}">
+const ON = "light-dark(#0f766e, #5eead4)";
+const BAD = "light-dark(#b3261e, #ff8a80)";
+const OFF_LINE = "light-dark(#e6e6e6, #262626)";
+const OFF_FG = "light-dark(#3d3d3d, #b5b5b5)";
+
+// role, tokens, state: keep | pin | drop | evicted | summary
+const M = (role, tok, tag, state) => ({ role, tok, tag, state });
+
+const SCENES = [
+  { msgs: [M("system", 900, "", "keep"), M("user", 400, "the task", "keep"), M("assistant", 300, "", "keep"), M("tool", 2100, "read", "keep")],
+    used: 3700, strategy: "step 2 of 30", event: null,
+    line: "context grows monotonically",
+    caption: "Each step adds an assistant message and a batch of tool results. Tool results are the big ones." },
+  { msgs: [M("system", 900, "", "keep"), M("user", 400, "the task", "keep"), M("assistant", 300, "", "keep"), M("tool", 2100, "read", "keep"), M("assistant", 300, "", "keep"), M("tool", 41200, "grep", "keep")],
+    used: 45200, strategy: "step 6 of 30", event: null,
+    line: "# one grep away from a step that adds 40,000 tokens",
+    caption: "The growth is not gentle. A file read is thousands of tokens; a test run's output can be tens of thousands." },
+  { msgs: [M("system", 900, "", "keep"), M("user", 400, "the task", "keep"), M("assistant", 300, "", "keep"), M("tool", 2100, "read", "keep"), M("assistant", 300, "", "keep"), M("tool", 41200, "grep", "keep"), M("tool", 38000, "pytest", "keep"), M("assistant", 400, "", "keep"), M("tool", 34500, "read", "keep")],
+    used: 118100, strategy: "step 21 of 30", event: null,
+    line: "usable_tokens = max_context_tokens - reserve_output_tokens",
+    caption: "Fill 128k of a 128k window with input and there is no room left for a reply. Reserving output space up front makes the failure impossible rather than rare." },
+  { msgs: [M("system", 900, "", "evicted"), M("user", 400, "the task", "evicted"), M("assistant", 300, "", "evicted"), M("tool", 2100, "read", "keep"), M("assistant", 300, "", "keep"), M("tool", 41200, "grep", "keep"), M("tool", 38000, "pytest", "keep"), M("assistant", 400, "", "keep"), M("tool", 34500, "read", "keep")],
+    used: 116500, strategy: "naive: sliding window", bad: true, event: null,
+    line: "# keep the last N messages",
+    caption: "By step 30 the task statement has slid out of the window. The agent does not error. It keeps working on whatever the recent context implies — which from the outside looks like the model getting dumber over time." },
+  { msgs: [M("system", 900, "pinned", "pin"), M("user", 400, "pinned", "pin"), M("assistant", 300, "", "drop"), M("tool", 2100, "read", "drop"), M("assistant", 300, "", "drop"), M("tool", 41200, "grep", "drop"), M("tool", 38000, "pytest", "keep"), M("assistant", 400, "", "keep"), M("tool", 34500, "read", "keep")],
+    used: 118100, strategy: "DropOldest", event: null,
+    line: "class DropOldest:  # keep the system prompt, the first user message, and the newest tail that fits",
+    caption: "What gets dropped is the middle — old tool results, superseded file reads, exploratory dead ends. Exactly the material with the worst value-per-token in the whole conversation." },
+  { msgs: [M("system", 900, "pinned", "pin"), M("user", 400, "pinned", "pin"), M("tool", 38000, "pytest", "keep"), M("assistant", 400, "", "keep"), M("tool", 34500, "read", "keep")],
+    used: 74200, strategy: "DropOldest",
+    event: { strategy: "DropOldest", tokens: "118_100 → 74_200", dropped: "4", reclaimed: "43_900" },
+    line: "CompactionEvent(tokens_before=118_100, tokens_after=74_200, dropped_messages=4)",
+    caption: "Every compaction is recorded with counts before and after. \u201cWhat did compaction cost you?\u201d has a number instead of a shrug — and an eval task can assert compaction_events >= 1." },
+  { msgs: [M("system", 900, "pinned", "pin"), M("user", 400, "pinned", "pin"), M("summary", 1200, "synthetic=True", "summary"), M("tool", 38000, "pytest", "keep"), M("assistant", 400, "", "keep"), M("tool", 34500, "read", "keep")],
+    used: 75400, strategy: "SummariseMiddle",
+    event: { strategy: "SummariseMiddle", tokens: "118_100 → 75_400", dropped: "4 → 1", reclaimed: "42_700" },
+    line: "def __init__(self, summariser: Callable[[list[Message]], str])",
+    caption: "The agent keeps a lossy trace of its own history — which matters when step 40 needs to know that step 12 already tried something and it didn't work. It takes a callable, not a provider, so a test can pass lambda msgs: \"summary\"." },
+];
+
+class Component extends DCLogic {
+  state = { i: 0, playing: !matchMedia("(prefers-reduced-motion: reduce)").matches };
+  componentDidMount() { this.tick(); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  tick() {
+    clearInterval(this.timer);
+    if (!this.state.playing) return;
+    this.timer = setInterval(() => this.setState(s => ({ i: (s.i + 1) % SCENES.length })), 3400);
+  }
+  go(d) { this.setState(s => ({ i: (s.i + d + SCENES.length) % SCENES.length, playing: false }), () => this.tick()); }
+
+  renderVals() {
+    const s = SCENES[this.state.i];
+    const style = {
+      keep: { line: OFF_LINE, bg: "transparent", fg: OFF_FG, tagFg: "light-dark(#8a8a8a, #6b6b6b)", op: 1 },
+      pin: { line: ON, bg: "light-dark(#f0faf8, #10201f)", fg: ON, tagFg: ON, op: 1 },
+      drop: { line: OFF_LINE, bg: "light-dark(#fafafa, #151515)", fg: "light-dark(#a8a8a8, #5a5a5a)", tagFg: "light-dark(#a8a8a8, #5a5a5a)", op: 0.42 },
+      evicted: { line: BAD, bg: "light-dark(#fdf3f2, #1f1211)", fg: BAD, tagFg: BAD, op: 0.55 },
+      summary: { line: ON, bg: "light-dark(#f0faf8, #10201f)", fg: ON, tagFg: ON, op: 1 },
+    };
+    const msgs = s.msgs.map(m => Object.assign({
+      role: m.role, tok: m.tok.toLocaleString("en-US").replace(/,/g, "_"), tag: m.tag, flex: Math.max(1.1, Math.sqrt(m.tok / 900)),
+    }, style[m.state]));
+    const over = s.used > 120000;
+    return {
+      msgs,
+      fillPct: Math.min(100, (s.used / 128000) * 100) + "%",
+      fillBg: s.bad ? BAD : (over ? BAD : "light-dark(#0f766e, #5eead4)"),
+      usedLabel: s.used.toLocaleString("en-US").replace(/,/g, "_") + " / 120_000 usable",
+      usedFg: over ? BAD : "light-dark(#6b6b6b, #9a9a9a)",
+      strategy: s.strategy,
+      strategyFg: s.bad ? BAD : "light-dark(#6b6b6b, #9a9a9a)",
+      eventOp: s.event ? 1 : 0.15,
+      ev: s.event || { strategy: "—", tokens: "—", dropped: "—", reclaimed: "—" },
+      line: s.line,
+      caption: s.caption,
+      playLabel: this.state.playing ? "pause" : "play",
+      prev: () => this.go(-1),
+      next: () => this.go(1),
+      toggle: () => this.setState(s2 => ({ playing: !s2.playing }), () => this.tick()),
+    };
+  }
+}
+</script>
+</body>
+</html>

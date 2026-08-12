@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+// Serve React from this site rather than unpkg: the docs must not depend on a
+// third-party CDN at page-view time. support.js honours __resources as an
+// override for its pinned CDN URLs (the files are byte-identical to the ones
+// its SRI hashes cover).
+window.__resources = {
+  "https://unpkg.com/react@18.3.1/umd/react.production.min.js": "./vendor/react-18.3.1.production.min.js",
+  "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js": "./vendor/react-dom-18.3.1.production.min.js"
+};
+</script>
+<script src="./support.js"></script>
+<script>
+// Follow the Material palette toggle in the parent page; fall back to the system setting.
+(function () {
+  var current = null;
+  function apply(scheme) {
+    if (scheme !== "light" && scheme !== "dark") return;
+    current = scheme;
+    // Both elements: the stylesheet sets color-scheme on html *and* body, and
+    // light-dark() inside the body resolves against the body's own value.
+    document.documentElement.style.colorScheme = scheme;
+    if (document.body) document.body.style.colorScheme = scheme;
+  }
+  addEventListener("DOMContentLoaded", function () {
+    if (current) apply(current);
+  });
+  var q = new URLSearchParams(location.search).get("theme");
+  if (q) apply(q);
+  addEventListener("message", function (e) {
+    if (e.data && e.data.type === "endstate-theme") apply(e.data.scheme);
+  });
+  addEventListener("load", function () {
+    if (parent !== window) parent.postMessage({ type: "endstate-diagram-ready" }, "*");
+  });
+})();
+</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700%7CRoboto+Mono:400,500,700&display=swap">
+<style>
+  html, body { margin: 0; padding: 0; color-scheme: light dark; background: light-dark(#ffffff, #0d0d0d); }
+  a { color: light-dark(#0f766e, #5eead4); }
+  a:hover { color: light-dark(#0b5c56, #99f6e4); }
+</style>
+</helmet>
+<div style="font-family: Roboto, Helvetica, Arial, sans-serif; color: light-dark(#0d0d0d, #e9e9e9); background: light-dark(#ffffff, #0d0d0d); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <div style="font-size: 19px; font-weight: 500; letter-spacing: -.01em">Durability and resume</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">agent/session.py · D8</div>
+    </div>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; transition: color .35s ease; color: {{ modeFg }}">{{ mode }}</div>
+  </div>
+
+  <div style="display: flex; gap: 6px; align-items: stretch">
+    <sc-for list="{{ steps }}" as="s" hint-placeholder-count="6">
+      <div style="flex: 1; border: 1px solid; border-radius: 3px; padding: 9px 10px; display: flex; flex-direction: column; gap: 6px; transition: all .4s ease; border-color: {{ s.line }}; background: {{ s.bg }}; opacity: {{ s.op }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; color: light-dark(#8a8a8a, #6b6b6b)">{{ s.n }}</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: {{ s.fg }}">{{ s.call }}</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; transition: color .4s ease; color: {{ s.markFg }}">{{ s.mark }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start">
+
+    <div style="border: 1px solid light-dark(#e6e6e6, #262626); border-radius: 3px; padding: 13px 15px; display: flex; flex-direction: column; gap: 9px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500">SessionStore · sqlite</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; color: light-dark(#8a8a8a, #6b6b6b)">(session_id, step) · INSERT OR REPLACE</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 3px">
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="5">
+          <div style="display: grid; grid-template-columns: 26px 84px minmax(0, 1fr); gap: 10px; font-family: 'Roboto Mono', monospace; font-size: 11px; padding: 5px 7px; border-radius: 2px; transition: all .4s ease; background: {{ r.bg }}; color: {{ r.fg }}">
+            <div>{{ r.step }}</div>
+            <div>{{ r.role }}</div>
+            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ r.body }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; line-height: 1.5; color: light-dark(#8a8a8a, #6b6b6b); border-top: 1px solid light-dark(#ececec, #242424); padding-top: 8px">append() writes on every message.<br>There is no save() to forget to call.</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <div style="border: 1px solid; border-radius: 3px; padding: 13px 15px; display: flex; flex-direction: column; gap: 7px; transition: all .4s ease; border-color: {{ out.line }}; background: {{ out.bg }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; color: {{ out.fg }}">{{ outTitle }}</div>
+        <div style="font-size: 12.5px; line-height: 1.55; white-space: pre-line; color: light-dark(#3d3d3d, #b5b5b5)">{{ outBody }}</div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; transition: opacity .4s ease; opacity: {{ hashOp }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; border: 1px solid light-dark(#e0e0e0, #2e2e2e); border-radius: 3px; padding: 7px 10px; color: light-dark(#3d3d3d, #b5b5b5)">uninterrupted · {{ hashA }}</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 13px; transition: color .4s ease; color: {{ hashFg }}">{{ hashOp2 }}</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; border: 1px solid; border-radius: 3px; padding: 7px 10px; transition: all .4s ease; border-color: {{ hashFg }}; color: {{ hashFg }}">resumed · {{ hashB }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: end; border-top: 1px solid light-dark(#e6e6e6, #262626); padding-top: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#0f766e, #5eead4)">{{ line }}</div>
+      <div style="font-size: 13.5px; line-height: 1.5; min-height: 42px; max-width: 76ch; color: light-dark(#3d3d3d, #b5b5b5); text-wrap: pretty">{{ caption }}</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button onClick="{{ prev }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">←</button>
+      <button onClick="{{ toggle }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 13px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer; min-width: 62px" style-hover="border-color: light-dark(#0f766e, #5eead4)">{{ playLabel }}</button>
+      <button onClick="{{ next }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">→</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:840,&quot;height&quot;:670}}">
+const ON = "light-dark(#0f766e, #5eead4)";
+const BAD = "light-dark(#b3261e, #ff8a80)";
+const OFF_LINE = "light-dark(#e6e6e6, #262626)";
+const OFF_FG = "light-dark(#3d3d3d, #b5b5b5)";
+
+const CALLS = ["read", "edit", "pytest", "git commit", "write", "pytest"];
+// state per step: done | killed | pending | future | redo
+const SCENES = [
+  { mode: "run · uninterrupted", states: ["done", "done", "done", "done", "done", "done"],
+    rows: [["0", "user", "migrate the auth module"], ["1", "assistant", "tool_calls: read"], ["2", "tool", "tool_results: ok"], ["3", "assistant", "tool_calls: edit"], ["4", "tool", "tool_results: ok"]],
+    title: "append + checkpoint are one operation",
+    body: "You cannot have in-memory state that has\nnot been persisted, because the only way to\nadd a message also writes it.",
+    line: "self.messages.append(message); self.store._append(self.id, len(...) - 1, message)",
+    caption: "SQLite, not Postgres. Checkpointing is a durability problem, not a scale problem — and a harness that needs infrastructure to remember what it was doing is a harness nobody will run locally." },
+  { mode: "kill -9 at step 4", states: ["done", "done", "done", "killed", "future", "future"],
+    rows: [["0", "user", "migrate the auth module"], ["1", "assistant", "tool_calls: read"], ["2", "tool", "tool_results: ok"], ["3", "assistant", "tool_calls: git commit"], ["4", "—", "(nothing)"]],
+    title: "the process dies mid-step", bad: true,
+    body: "Side effects from steps 1–3 are already\non disk. What has to be true for --resume\nto be correct?",
+    line: "# the provider returned 500 on step 9 of 25",
+    caption: "Without durability the answer is \u201cstart again,\u201d which throws away real work and real money. With naive durability the answer is worse: you replay from a checkpoint and re-apply side effects that already happened." },
+  { mode: "checkpoint BEFORE the tool", states: ["done", "done", "done", "ambiguous", "future", "future"],
+    rows: [["3", "assistant", "tool_calls: git commit"], ["3'", "intent", "about to run git commit"], ["4", "—", "did it run? unknowable"]],
+    title: "an intention persisted as a fact", bad: true,
+    body: "If it ran and wrote a coverage file,\nrunning it again is harmless.\nIf the tool was git commit, running it\nagain gives you two commits.",
+    line: "# the record was written before the outcome existed",
+    caption: "The harness cannot tell these apart. Never persist an intention as though it were a fact." },
+  { mode: "checkpoint AFTER the tool result", states: ["done", "done", "done", "absent", "future", "future"],
+    rows: [["1", "assistant", "tool_calls: read"], ["2", "tool", "tool_results: ok"], ["3", "assistant", "tool_calls: git commit"], ["—", "—", "incomplete step absent entirely"]],
+    title: "the ambiguous middle is gone",
+    body: "Either the side effect happened and is\nrecorded, or it did not happen and there\nis nothing to undo.",
+    line: "# D8: checkpoint after the tool result, never before",
+    caption: "A completed step is in the log with its outcome, and an incomplete step is absent entirely. Persist outcomes." },
+  { mode: "crash mid-batch · 3 calls in one turn", states: ["done", "done", "done", "pending", "pending", "future"],
+    rows: [["7", "assistant", "tool_calls: [a, b, c]"], ["8", "tool", "results: [a ✓, b ✓]"], ["—", "—", "c: requested, no result"]],
+    title: "results are persisted per call, not per batch",
+    body: "Writing them all at the end would mean a\ncrash after the second of three left no\nrecord that the first two had run — while\ntheir side effects were already on disk.",
+    line: "SessionStore keys messages on (session_id, step) with INSERT OR REPLACE",
+    caption: "Each result is written as it lands, rewriting the tool message at the same step. No extra rows, no schema change." },
+  { mode: "--resume <session-id>", states: ["done", "done", "done", "redo", "done", "done"],
+    rows: [["7", "assistant", "tool_calls: [a, b, c]"], ["8", "tool", "results: [a ✓, b ✓, c ✓]"], ["9", "assistant", "continues"]],
+    title: "resume reconciles outstanding calls",
+    body: "It finds calls with no recorded result,\nexecutes exactly those, and only then\ncontinues the loop.",
+    line: "def _pending(self, messages): ...  # settled before any new user message",
+    caption: "Adding the instruction first would bury the unfinished batch mid-history, where nothing would ever complete it." },
+  { mode: "tests/test_recovery.py", states: ["done", "done", "done", "done", "done", "done"],
+    rows: [["1", "run", "to completion · hash the tree"], ["2", "run", "kill at step k"], ["3", "resume", "from the session"], ["4", "assert", "tree hashes are equal"], ["5", "repeat", "for randomised k"]],
+    title: "the check cannot look at the transcript",
+    body: "Two runs can reach an identical filesystem\nvia different conversations, and an identical\nconversation can leave different files.",
+    hash: true,
+    line: "assert RunResult.tree_hash() == baseline",
+    caption: "Same shape as the whole project's thesis: the assertion is about the end state, not about what was said." },
+];
+
+class Component extends DCLogic {
+  state = { i: 0, playing: !matchMedia("(prefers-reduced-motion: reduce)").matches };
+  componentDidMount() { this.tick(); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  tick() {
+    clearInterval(this.timer);
+    if (!this.state.playing) return;
+    this.timer = setInterval(() => this.setState(s => ({ i: (s.i + 1) % SCENES.length })), 3600);
+  }
+  go(d) { this.setState(s => ({ i: (s.i + d + SCENES.length) % SCENES.length, playing: false }), () => this.tick()); }
+
+  renderVals() {
+    const s = SCENES[this.state.i];
+    const ST = {
+      done: { line: OFF_LINE, bg: "transparent", fg: OFF_FG, mark: "checkpointed", markFg: ON, op: 1 },
+      future: { line: OFF_LINE, bg: "transparent", fg: "light-dark(#b0b0b0, #545454)", mark: "—", markFg: "light-dark(#c4c4c4, #3a3a3a)", op: .5 },
+      killed: { line: BAD, bg: "light-dark(#fdf3f2, #1f1211)", fg: BAD, mark: "kill -9", markFg: BAD, op: 1 },
+      ambiguous: { line: BAD, bg: "light-dark(#fdf3f2, #1f1211)", fg: BAD, mark: "ran? unknown", markFg: BAD, op: 1 },
+      absent: { line: OFF_LINE, bg: "transparent", fg: "light-dark(#b0b0b0, #545454)", mark: "not recorded", markFg: "light-dark(#8a8a8a, #6b6b6b)", op: .55 },
+      pending: { line: BAD, bg: "light-dark(#fdf3f2, #1f1211)", fg: BAD, mark: "no result", markFg: BAD, op: 1 },
+      redo: { line: ON, bg: "light-dark(#f0faf8, #10201f)", fg: ON, mark: "re-run on resume", markFg: ON, op: 1 },
+    };
+    const steps = s.states.map((st, idx) => Object.assign({ n: "step " + (idx + 1), call: CALLS[idx] }, ST[st]));
+    const rows = s.rows.map(r => ({
+      step: r[0], role: r[1], body: r[2],
+      bg: r[2].indexOf("unknowable") >= 0 || r[2].indexOf("no result") >= 0 || r[0] === "3'" ? "light-dark(#fdf3f2, #1f1211)" : "transparent",
+      fg: r[1] === "—" ? "light-dark(#8a8a8a, #6b6b6b)" : OFF_FG,
+    }));
+    return {
+      mode: s.mode,
+      modeFg: s.bad ? BAD : "light-dark(#6b6b6b, #9a9a9a)",
+      steps, rows,
+      out: { line: s.bad ? BAD : ON, bg: s.bad ? "light-dark(#fdf3f2, #1f1211)" : "light-dark(#f0faf8, #10201f)", fg: s.bad ? BAD : ON },
+      outTitle: s.title,
+      outBody: s.body,
+      hashOp: s.hash ? 1 : 0.15,
+      hashA: "a91f…",
+      hashB: "a91f…",
+      hashOp2: "=",
+      hashFg: ON,
+      line: s.line,
+      caption: s.caption,
+      playLabel: this.state.playing ? "pause" : "play",
+      prev: () => this.go(-1),
+      next: () => this.go(1),
+      toggle: () => this.setState(s2 => ({ playing: !s2.playing }), () => this.tick()),
+    };
+  }
+}
+</script>
+</body>
+</html>

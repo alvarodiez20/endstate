@@ -47,10 +47,11 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
-# The brand folder is copied into docs/ for its images; its README is a usage
-# guide for the assets, not a page of this site.
+# The brand and diagram folders are copied into docs/ for their assets; their
+# READMEs are usage guides for those assets, not pages of this site.
 exclude_docs: |
   assets/brand/README.md
+  assets/diagrams/README.md
 
 plugins:
   - search
@@ -86,6 +87,12 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
+
+extra_css:
+  - stylesheets/diagrams.css
+
+extra_javascript:
+  - assets/diagrams/embed.js
 
 extra:
   social:

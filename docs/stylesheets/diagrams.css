@@ -1,0 +1,20 @@
+/* docs/stylesheets/diagrams.css */
+
+/* The diagrams are laid out for the ~688px Material content column. Below that
+   the wrapper pans horizontally rather than letting the layouts collapse. */
+.endstate-diagram-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 1.2rem 0 1.6rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.endstate-diagram {
+  display: block;
+  width: 100%;
+  min-width: 680px;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 4px;
+  background: var(--md-default-bg-color);
+  margin: 0;
+}

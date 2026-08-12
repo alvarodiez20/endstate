@@ -3,6 +3,11 @@
 Every long-running agent eventually runs out of context window. What it throws away, and whether it
 notices, decides whether it can do work that takes an hour.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/context-and-compaction.html"
+          height="535" loading="lazy" title="Context growth and what compaction keeps"></iframe>
+</div>
+
 ## Why this is unavoidable
 
 Context grows monotonically. Each step adds an assistant message and a batch of tool results, and
