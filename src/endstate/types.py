@@ -6,10 +6,11 @@ format into these types, so the loop never sees a vendor-specific object.
 
 from __future__ import annotations
 
-from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+from endstate._compat import StrEnum
 
 Role = Literal["system", "user", "assistant", "tool"]
 

@@ -10,7 +10,7 @@ name = "endstate"
 dynamic = ["version"]
 description = "An agent harness with evals that grade the end state, not the output."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Álvaro Diez de Pablos", email = "alvarodiez20@gmail.com" }]
 keywords = ["ai-agents", "llm", "evaluation", "llmops", "agent-harness"]
@@ -18,9 +18,11 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: Testing",
 ]
 dependencies = [
@@ -85,7 +87,7 @@ exclude_commit_patterns = ["^chore\\(release\\):"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py310"
 # Markdown is prose, not source. ruff >= 0.16 reformats Python fenced in .md,
 # which turns illustrative snippets in PLAN.md into a failing format gate.
 extend-exclude = ["*.md"]
@@ -102,7 +104,7 @@ testpaths = ["tests"]
 addopts = "-q --strict-markers"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.10"
 strict = true
 files = ["src/endstate"]
 
