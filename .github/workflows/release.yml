@@ -44,7 +44,25 @@ jobs:
           fetch-depth: 0
           ref: main
 
+      # `ci` went green on one specific commit. Tagging whatever main points at
+      # now would, when two merges land close together, put the tag on a commit
+      # whose own ci run has not finished — the exact thing the trigger above is
+      # meant to rule out. If main has moved, stand down: the newer commit has
+      # its own ci run, and that run releases both.
+      - id: guard
+        env:
+          TESTED: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          head=$(git rev-parse HEAD)
+          if [ "$head" = "$TESTED" ]; then
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ci passed on $TESTED but main is at $head — leaving the release to that commit's run"
+          fi
+
       - uses: python-semantic-release/python-semantic-release@v9.21.2
+        if: steps.guard.outputs.fresh == 'true'
         id: release
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
