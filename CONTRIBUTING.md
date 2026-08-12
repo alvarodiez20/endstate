@@ -64,6 +64,13 @@ failure. Documentation and chores land on `main` without consuming a version.
 **When squash-merging, the PR title becomes the commit message.** So the convention applies to PR
 titles too — a PR titled "Fix the thing" produces no release no matter what its commits say.
 
+**And the PR body becomes the commit body,** which has one sharp edge: GitHub scans the whole
+message for its skip markers. A PR that so much as mentions `[skip` `ci]` in prose — describing this
+very pipeline, say — merges into a commit that runs **no workflows at all**. No `ci`, no `docs`
+deploy, no release evaluation, and no failure anywhere to tell you. Write the marker with a space,
+a zero-width character, or a screenshot when discussing it in a PR. If one slips through, re-run
+`docs` from the Actions tab and check whether a release was owed.
+
 ## What happens when you merge
 
 1. `ci` runs the gates on 3.11, 3.12 and 3.13: ruff, `ruff format --check`, `mypy --strict`, pytest,
