@@ -91,6 +91,64 @@ vLLM endpoint without changing a single task — which is the whole point of the
     harness. Structural typing means a class that happens to have the right shape *is* a provider.
     This keeps the dependency arrow pointing one way and makes adapters trivially testable.
 
+## The gap in this model: reasoning blocks
+
+Everything above assumes a turn is text plus tool calls. Since reasoning models shipped, that is no
+longer the whole shape, and this is the one place where the type system on this page is behind the
+providers it abstracts.
+
+Anthropic returns **thinking** as its own content block. Three properties make it awkward, and all
+three are documented under
+[thinking in tool and multi-turn workflows](https://platform.claude.com/docs/en/build-with-claude/thinking-tool-workflows):
+
+- It carries a cryptographic signature. The text is verifiable but not freely editable.
+- On a follow-up call the *entire sequence* of consecutive thinking blocks must be returned exactly
+  as the model produced it. You may not reorder or rewrite them.
+- What happens to prior turns' thinking differs **by model, not merely by vendor**, and the
+  boundary falls in a different place for each family: Opus 4.5 and later, and Sonnet 4.6 and later,
+  keep every prior turn's thinking in context and bill it as input; earlier Opus and Sonnet models,
+  and every Haiku through 4.5, keep only the last turn and strip the rest server-side.
+- Switching models mid-conversation means stripping thinking blocks from prior turns yourself. They
+  are tied to the model that produced them; another model ignores them silently rather than
+  erroring — and still bills you for the tokens.
+
+The configuration surface moves too. Anthropic's fixed `budget_tokens` mode is now legacy — 4.7 and
+later reject it outright — replaced by adaptive thinking, where the model decides whether to think at
+all. That is not a wire-format change an adapter can absorb silently: the same code path against two
+model versions produces different token accounting and different behaviour.
+
+OpenAI's reasoning models have their own representation with its own rules. There is no cross-vendor
+standard, and unlike tool calls — where the shapes differ but the *concepts* line up cleanly onto
+`ToolCall` and `ToolResult` — there is no obvious neutral form to normalise into. The content is
+partly opaque by design.
+
+!!! warning "This harness does not handle thinking blocks"
+
+    `Message` has no field for reasoning content, so a provider adapter here has to drop it. For
+    non-thinking models that is correct. For a thinking model with tool use it is not: dropping the
+    blocks loses [interleaved reasoning](the-loop.md) between tool calls, and with some providers it
+    is a protocol error rather than a degradation.
+
+    The honest description is that this is a known gap, not a design choice. If you are building the
+    same abstraction, budget for an opaque, provider-scoped passthrough field from the start — it is
+    much easier than retrofitting one.
+
+## The other thing that leaks through: cache breakpoints
+
+Prompt caching is priced, not free, and it is prefix-based: the provider can only reuse a cached
+prefix up to the first token that changed. That has a consequence which is invisible from inside a
+`Message` type and expensive in practice.
+
+**Editing the middle of the history invalidates everything after it.** Which is exactly what
+[compaction](context-and-compaction.md) does. A compaction pass that reclaims 60,000 tokens can also
+force a full cache re-write on the next call, and with Anthropic's pricing a 5-minute cache write
+costs 1.25× base input against a 0.1× read. Compaction can therefore *raise* the cost of the very
+next step while lowering it for every step after.
+
+Nothing in this harness models that yet. It is called out here because it is the clearest example of
+a provider detail that a clean internal message type will happily hide from you until it shows up on
+a bill.
+
 ## `Usage` is part of the response, not a side channel
 
 ```python
@@ -122,3 +180,25 @@ harness you cannot test, and you will discover that at the worst possible moment
 
 Source:
 [`providers/fake.py`](https://github.com/alvarodiez20/endstate/blob/main/src/endstate/providers/fake.py).
+
+## Open problems
+
+**No standard for reasoning traces.** Tool calling converged: every vendor now does roughly the same
+thing in a different syntax, so a neutral type is possible. Reasoning has not converged, and the
+opacity is partly deliberate — providers do not want raw chains of thought treated as a stable API.
+An abstraction layer can transport these blocks but cannot meaningfully normalise them.
+
+**Model-level, not vendor-level, divergence.** The old assumption that one adapter covers one vendor
+is weakening. Thinking retention differs between models from the same vendor; so do caching rules and
+tool-calling quirks. A `Provider` keyed on vendor with a `model` string may be the wrong seam.
+
+**OpenAI-compatible is a spectrum, not a contract.** vLLM, Ollama, gateways and hosted clones each
+implement a different subset, and some still emit tool calls as text to be parsed. There is no
+conformance suite, so "OpenAI-compatible" tells you almost nothing about whether a given agent loop
+will work — which matters directly for the
+[self-hosted arm of the benchmark](../guides/self-hosted-models.md).
+
+**Determinism is not on offer.** `FakeProvider` gives the harness reproducibility; real providers do
+not, even at temperature 0, because of batching and hardware non-determinism. Every claim about
+[eval determinism](evaluation.md) is therefore a claim about distributions, not about identical
+outputs, and saying otherwise is a small lie that gets discovered late.

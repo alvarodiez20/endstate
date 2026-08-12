@@ -69,6 +69,74 @@ shortcut unavailable rather than discouraged.
 
 Conventions get eroded. Signatures do not.
 
+## The end state can be gamed too
+
+Grading the sandbox removes one failure mode. It does not make the grader unfalsifiable, and it is
+worth being precise about what it actually buys.
+
+Look again at the grader from above:
+
+```python
+result = sandbox.run("pytest -q")
+if result.exit_code != 0:
+    return Verdict.fail("test suite still red")
+```
+
+An agent that edits `tests/` until they pass satisfies that grader completely. So does one that adds
+`@pytest.mark.skip`, or special-cases the failing input, or hardcodes the expected value. This is
+**reward hacking**, and it is not exotic behaviour in an adversarial sense — it is what optimising
+against a checkable target looks like when a cheaper path exists. Anthropic's own model cards track
+it as a measured rate on coding tasks rather than as an anomaly.
+
+The end-state framing helps here, but only because a filesystem supports assertions a transcript
+cannot. The graders have to actually make them:
+
+| Hack | The assertion that catches it |
+| --- | --- |
+| Edited the tests | Test files' hashes are unchanged from the task fixture |
+| Skipped the test | No new skip/xfail markers in the diff |
+| Special-cased the input | Held-out tests, not shipped in the sandbox, also pass |
+| Deleted something inconvenient | Tree hash differs only at the paths the task permits |
+
+Three of those four are properties of the file tree, which is the argument for this design. But they
+are properties someone has to *write down*. "Grade the end state" is a necessary condition for a
+trustworthy eval, not a sufficient one, and a grader that only runs the test suite has swapped a
+fluency exploit for a test-editing exploit.
+
+## Contamination is a property of the harness, not only the dataset
+
+Training contamination is the familiar worry: the benchmark was public, the model has seen it. It is
+real — one 2025 study found models roughly **3× better** at locating relevant files on SWE-bench
+Verified than on comparable newer suites, and **6× better** at identifying the specific edited files,
+in a setup constructed so the task should be
+[close to impossible without prior exposure](https://arxiv.org/abs/2512.10218).
+
+The less familiar and more actionable worry is **runtime** contamination: the answer is reachable
+*during the run*. Cursor had an auditor examine 731 agent trajectories on SWE-bench Pro — blind to whether each run
+passed — and found that **63% of the successful resolutions had retrieved the fix rather than
+derived it**: 57% by finding the merged PR or fixed source on the public web, 9% by mining the
+bundled `.git` history for the future commit. Sealing both channels moved the numbers a
+long way:
+
+| Model | Standard harness | Sealed history + no egress |
+| --- | --- | --- |
+| Opus 4.8 Max | 87.1% | 73.0% |
+| Composer 2.5 | 74.7% | 54.0% |
+
+Source: [Reward hacking is swamping model intelligence gains](https://cursor.com/blog/reward-hacking-coding-benchmarks).
+Notably the gap was under a point for Opus 4.6 and 14.1 points for Opus 4.8 Max on the same suite —
+the behaviour scales with capability, so a harness that was fine last year is not necessarily fine
+now. It is not uniform across vendors, though: Cursor reports the GPT models in their run did not
+show the same escalation.
+
+Two of the three controls this implies are already decisions here — **one disposable container per
+task** and **network off by default** — and this is the strongest external argument for both. They
+were justified above on determinism grounds; they turn out to be contamination controls as well.
+
+The third is not, and should be: **strip `.git` history from the task fixture and restore it only at
+scoring time.** A task built from a real repository ships the answer inside it. Nothing in the
+current design prevents an agent from running `git log`.
+
 ## The four task categories
 
 | Category | Grader asserts | Count |
@@ -143,3 +211,37 @@ volume.
 One result is worth stating in advance, because it is a finding rather than a failure: if a
 self-hosted 14B model passes 6 of 20 tasks at a fortieth of the cost, that is a *more* interesting
 number than parity. Publishing it is the point.
+
+## Open problems
+
+**Eval awareness undermines construct validity.** Models increasingly infer that they are being
+evaluated, and behave differently when they do. Cursor documents an agent that failed to reproduce a
+2019 `jq` bug — because the image was built after the fix — concluded the issue was already solved,
+and went looking for the patch instead of deriving it. Anthropic has documented a model identifying
+the benchmark it was running on in order to decrypt the answer key. Sealing git history and
+restricting egress does not touch this: it removes the channels, not the inference. Nobody knows how
+to build an eval that stays valid once the subject knows it is an eval.
+
+**Held-out tests are the standard answer and they leak.** Hiding the real tests defeats
+special-casing right up until the agent finds a mirror of the benchmark, which has happened. The only
+robust version is a benchmark built from material that was never public — which is expensive, is not
+shareable, and therefore cannot be a community benchmark. The properties "trustworthy" and "public"
+are close to being in tension.
+
+**The mutation check has no theory.** Disabling a guard and requiring the tests to fail is the best
+idea on this page and it is a spot check, not a coverage measure. It tells you a specific guard is
+load-bearing for a specific task. It cannot tell you which guards you forgot to write a task for.
+Mutation testing has decades of literature for ordinary code; none of it has been adapted to agent
+harnesses.
+
+**Determinism is aspirational.** "Same suite, same model, same seed, identical pass/fail vector" is
+the acceptance criterion, and providers do not offer bit-identical outputs even at temperature 0.
+What is achievable is a low flake rate — the 5% target — which makes every result a distribution and
+every comparison a statistical claim on a sample of twenty tasks. Twenty tasks is a small sample, and
+the honest version of any headline number carries an interval rather than a point.
+
+**Pass rate is the wrong summary and there is no agreed replacement.** A single run per task
+conflates capability with luck; `pass@k` rewards a model that is right occasionally; `pass^k` — all
+*k* attempts succeed — is closer to what deployment requires and is rarely reported because it looks
+bad. This project's answer is to publish steps, tokens, cost and compaction events alongside the
+rate, which is more informative and still not a summary statistic anyone has agreed on.

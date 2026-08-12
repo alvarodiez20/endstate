@@ -153,6 +153,39 @@ tools are idempotent, because losing the record of a completed call just means r
 lands in the same place. It shows up only in the recorded history — and it would show up in the end
 state the moment a non-idempotent tool was involved.
 
+## Where this sits in the wider durable-execution world
+
+None of this is new. It is workflow engineering, rediscovered by agent builders, and the vocabulary
+already exists — which is useful, because it makes the gaps easier to name.
+
+The distinction that matters is **checkpointing versus durable execution**, and the two get conflated
+constantly:
+
+| | Checkpointing | Durable execution |
+| --- | --- | --- |
+| What is saved | A state snapshot after each step | A full event history of every step |
+| How recovery works | Load the snapshot, continue | Replay the history to rebuild in-memory state, then continue |
+| Re-execution on recovery | Anything after the last checkpoint runs again | Completed steps return cached results and never re-run |
+| Who does it | LangGraph, CrewAI, most agent frameworks | Temporal, Restate, DBOS, Inngest, Cloudflare Workflows |
+
+The engines in the right column give exactly-once semantics for completed steps by caching results in
+the event history. The frameworks in the left column do not — after a crash, nodes past the
+checkpoint re-execute, which makes idempotency mandatory for anything with a side effect rather than
+merely desirable.
+
+This harness is in the left column and knows it. The D8 ordering rule above is the poor-man's version
+of the same insight the engines encode: **a completed step must be recorded with its outcome, or the
+system cannot tell "done" from "about to."** Getting that right buys most of the benefit at a
+fraction of the operational cost, and requiring `docker compose up` before anyone can try a CLI tool
+is not a trade this project is willing to make.
+
+What it does *not* buy is the last mile. Durable-execution engines wrap side effects in a recorded
+activity so the result is cached; here, a re-run tool genuinely re-runs. The standard mitigation at
+the agent layer is an **idempotency key** per tool call — the tool checks whether that key has
+already been applied before doing anything. Nothing in this harness does that today, and it is what a
+`git commit` tool would need before resume could be called correct in general rather than correct for
+idempotent tools.
+
 ## Resume is not the same as continue
 
 A subtlety worth naming, because the CLI surface makes it easy to miss.
@@ -184,3 +217,28 @@ The second form settles any outstanding calls first, then takes the new instruct
 - Do you persist intentions or outcomes?
 - If a tool is not idempotent, can a resume run it twice?
 - Do you verify resume by comparing *end states*, or by eyeballing that it didn't crash?
+
+## Open problems
+
+**A filesystem has no transactions.** The window inside a tool call — after the side effect, before
+any record of it — is irreducible without transactional side effects, and a shell does not offer
+them. Idempotency keys narrow it; compensating actions ("undo the commit") are the other standard
+answer and are unreliable in exactly the cases you need them. Nobody has a clean solution for agents
+holding a shell.
+
+**Resume across a changed world is undefined.** Every guarantee on this page assumes the tool set,
+the model and the environment are unchanged between crash and resume. Resume a week-old session
+against a re-pinned model and the history is valid while the behaviour is not. No harness known to us
+records the provider, model version and tool schemas alongside the checkpoint and refuses to resume
+across a mismatch — which is probably what correctness requires.
+
+**Non-idempotent tools are handled by documentation.** The test suite covers the case honestly rather
+than pretending it away, which is better than most, and is still not a mechanism. A type-level
+distinction — tools declaring themselves idempotent or not, with the resume path treating them
+differently — would be enforceable. It does not exist here.
+
+**Long-running agents change the shape of the problem.** Everything above assumes a run that starts,
+crashes and resumes. Scheduled agents and always-on agents have no such boundary; their state
+directory *is* the durable artifact, and it accumulates indefinitely. At that point durability starts
+overlapping with [memory](memory.md) and inherits its problems, including
+[poisoning that survives every restart](prompt-injection.md).
