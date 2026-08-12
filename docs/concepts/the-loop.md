@@ -105,3 +105,8 @@ The loop is the skeleton. Every remaining page is one of the numbered annotation
 
 Start with [Messages and providers](messages-and-providers.md), though — it is the type system the
 rest of it is written in.
+
+The [part two pages](index.md) attach to the same annotations from the outside: ⑤ is also where
+[tools arrive from strangers](mcp-and-tool-discovery.md) and where
+[untrusted text enters the context window](prompt-injection.md), and ① is where
+[skills](skills.md) and [memory](memory.md) would earn their keep.

@@ -40,6 +40,10 @@ Source:
     engineering wearing a docstring costume, and it is billed accordingly. Vague descriptions produce
     tools the model uses at the wrong moment; verbose ones cost tokens on every step of every run.
 
+    Six tools makes this a rounding error. It stops being one the moment tools arrive at runtime by
+    the hundred — see [MCP and tool discovery](mcp-and-tool-discovery.md) — and the standard escape
+    hatch for knowledge too large to live in a description is [skills](skills.md).
+
 ## The confinement problem
 
 Give a model a `read` tool and eventually it will ask for `../../../../etc/passwd`. Not from malice —
@@ -120,6 +124,11 @@ defence is layered rather than singular:
 Layer 1 is the only one that is actually a boundary. Layers 2 and 3 are what you have when you are
 running on a laptop rather than in a container, which is most of the time during development. Be
 clear-eyed about which one you are relying on.
+
+Layering also has a second justification that has nothing to do with the model misbehaving: the text
+a tool *returns* can contain instructions. A `read` tool is an untrusted-content channel, and that
+turns the container from a convenience into the control. See
+[Prompt injection](prompt-injection.md).
 
 ## Tools return strings
 

@@ -171,6 +171,13 @@ endstate run "now add a test" --resume <session-id>   # continue the conversatio
 
 The second form settles any outstanding calls first, then takes the new instruction.
 
+!!! note "Durability is not memory"
+
+    Both write to disk and both survive process death, which is why they get conflated. A checkpoint
+    is a verbatim transcript written by the harness so *this* run can continue; a memory is a curated
+    claim written by the agent so a *future* run knows something. The second can be wrong in a way
+    the first cannot. See [Memory](memory.md).
+
 ## What to check in your own agent
 
 - Is there any state in memory that is not on disk? What is lost if you `kill -9` right now?
