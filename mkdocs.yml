@@ -122,6 +122,7 @@ nav:
       - Cost and telemetry: concepts/cost-and-telemetry.md
       - Evaluation: concepts/evaluation.md
       - Skills: concepts/skills.md
+      - Skill examples: concepts/skill-examples.md
       - MCP and tool discovery: concepts/mcp-and-tool-discovery.md
       - Memory: concepts/memory.md
       - Subagents and orchestration: concepts/subagents.md
