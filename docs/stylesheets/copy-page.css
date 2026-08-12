@@ -1,0 +1,46 @@
+/* docs/stylesheets/copy-page.css — the "Copy page" button in overrides/main.html */
+
+.endstate-copy-page {
+  float: right;
+  margin: 0.2rem 0 0.4rem 0.8rem;
+  padding: 0.25rem 0.6rem;
+  font-family: var(--md-code-font-family, monospace);
+  font-size: 0.62rem;
+  line-height: 1.6;
+  color: var(--md-default-fg-color--light);
+  background: transparent;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.1rem;
+  cursor: pointer;
+  transition:
+    color 125ms,
+    border-color 125ms;
+}
+
+.endstate-copy-page:hover:not(:disabled) {
+  color: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+}
+
+.endstate-copy-page:disabled {
+  cursor: default;
+}
+
+.endstate-copy-page[data-state="done"] {
+  color: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+}
+
+.endstate-copy-page[data-state="failed"] {
+  color: var(--md-typeset-del-color, #d3302f);
+  border-color: currentcolor;
+}
+
+/* The h1 must not wrap around the button on a narrow screen. */
+@media screen and (max-width: 44.9375em) {
+  .endstate-copy-page {
+    float: none;
+    display: block;
+    margin-left: 0;
+  }
+}
