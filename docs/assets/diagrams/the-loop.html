@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+// Serve React from this site rather than unpkg: the docs must not depend on a
+// third-party CDN at page-view time. support.js honours __resources as an
+// override for its pinned CDN URLs (the files are byte-identical to the ones
+// its SRI hashes cover).
+window.__resources = {
+  "https://unpkg.com/react@18.3.1/umd/react.production.min.js": "./vendor/react-18.3.1.production.min.js",
+  "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js": "./vendor/react-dom-18.3.1.production.min.js"
+};
+</script>
+<script src="./support.js"></script>
+<script>
+// Follow the Material palette toggle in the parent page; fall back to the system setting.
+(function () {
+  var current = null;
+  function apply(scheme) {
+    if (scheme !== "light" && scheme !== "dark") return;
+    current = scheme;
+    // Both elements: the stylesheet sets color-scheme on html *and* body, and
+    // light-dark() inside the body resolves against the body's own value.
+    document.documentElement.style.colorScheme = scheme;
+    if (document.body) document.body.style.colorScheme = scheme;
+  }
+  addEventListener("DOMContentLoaded", function () {
+    if (current) apply(current);
+  });
+  var q = new URLSearchParams(location.search).get("theme");
+  if (q) apply(q);
+  addEventListener("message", function (e) {
+    if (e.data && e.data.type === "endstate-theme") apply(e.data.scheme);
+  });
+  addEventListener("load", function () {
+    if (parent !== window) parent.postMessage({ type: "endstate-diagram-ready" }, "*");
+  });
+})();
+</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700%7CRoboto+Mono:400,500,700&display=swap">
+<style>
+  html, body { margin: 0; padding: 0; color-scheme: light dark; background: light-dark(#ffffff, #0d0d0d); }
+  a { color: light-dark(#0f766e, #5eead4); }
+  a:hover { color: light-dark(#0b5c56, #99f6e4); }
+  @keyframes es-pulse { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+  @keyframes es-dash { to { background-position: 24px 0 } }
+</style>
+</helmet>
+<div style="font-family: Roboto, Helvetica, Arial, sans-serif; color: light-dark(#0d0d0d, #e9e9e9); background: light-dark(#ffffff, #0d0d0d); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 22px; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <div style="font-size: 19px; font-weight: 500; letter-spacing: -.01em">The loop</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">agent/loop.py</div>
+    </div>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">for step in range(max_steps)</div>
+  </div>
+
+  <div style="position: relative; padding-bottom: 104px">
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: stretch">
+
+      <div style="border: 1px solid; border-radius: 3px; padding: 12px 10px 11px; display: flex; flex-direction: column; gap: 7px; transition: all .35s ease; border-color: {{ n0.line }}; background: {{ n0.bg }}; box-shadow: {{ n0.glow }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: {{ n0.num }}">①</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12.5px; line-height: 1.35; font-weight: 500; color: {{ n0.fg }}">context<br>.fit()</div>
+        <div style="font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a); line-height: 1.3">budget</div>
+      </div>
+
+      <div style="border: 1px solid; border-radius: 3px; padding: 12px 10px 11px; display: flex; flex-direction: column; gap: 7px; transition: all .35s ease; border-color: {{ n1.line }}; background: {{ n1.bg }}; box-shadow: {{ n1.glow }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: {{ n1.num }}">②</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12.5px; line-height: 1.35; font-weight: 500; color: {{ n1.fg }}">provider<br>.complete()</div>
+        <div style="font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a); line-height: 1.3">the model proposes</div>
+      </div>
+
+      <div style="border: 1px solid; border-radius: 3px; padding: 12px 10px 11px; display: flex; flex-direction: column; gap: 7px; transition: all .35s ease; border-color: {{ n2.line }}; background: {{ n2.bg }}; box-shadow: {{ n2.glow }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: {{ n2.num }}">③</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12.5px; line-height: 1.35; font-weight: 500; color: {{ n2.fg }}">_record()</div>
+        <div style="font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a); line-height: 1.3">append + checkpoint</div>
+      </div>
+
+      <div style="border: 1px solid; border-radius: 3px; padding: 12px 10px 11px; display: flex; flex-direction: column; gap: 7px; transition: all .35s ease; border-color: {{ n3.line }}; background: {{ n3.bg }}; box-shadow: {{ n3.glow }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: {{ n3.num }}">④</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12.5px; line-height: 1.35; font-weight: 500; color: {{ n3.fg }}">tool_calls?</div>
+        <div style="font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a); line-height: 1.3">the exit condition</div>
+      </div>
+
+      <div style="border: 1px solid; border-radius: 3px; padding: 12px 10px 11px; display: flex; flex-direction: column; gap: 7px; transition: all .35s ease; border-color: {{ n4.line }}; background: {{ n4.bg }}; box-shadow: {{ n4.glow }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: {{ n4.num }}">⑤</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12.5px; line-height: 1.35; font-weight: 500; color: {{ n4.fg }}">policy<br>.check()</div>
+        <div style="font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a); line-height: 1.3">before, not after</div>
+      </div>
+
+      <div style="border: 1px solid; border-radius: 3px; padding: 12px 10px 11px; display: flex; flex-direction: column; gap: 7px; transition: all .35s ease; border-color: {{ n5.line }}; background: {{ n5.bg }}; box-shadow: {{ n5.glow }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: {{ n5.num }}">⑥</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12.5px; line-height: 1.35; font-weight: 500; color: {{ n5.fg }}">run(call)</div>
+        <div style="font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a); line-height: 1.3">the side effect</div>
+      </div>
+
+      <div style="border: 1px solid; border-radius: 3px; padding: 12px 10px 11px; display: flex; flex-direction: column; gap: 7px; transition: all .35s ease; border-color: {{ n6.line }}; background: {{ n6.bg }}; box-shadow: {{ n6.glow }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: {{ n6.num }}">⑦</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12.5px; line-height: 1.35; font-weight: 500; color: {{ n6.fg }}">role=&quot;tool&quot;</div>
+        <div style="font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a); line-height: 1.3">results go back</div>
+      </div>
+    </div>
+
+    <div style="position: absolute; left: 3%; right: 3%; top: 100%; height: 44px; margin-top: -104px; border-left: 1px solid; border-right: 1px solid; border-bottom: 1px solid; border-radius: 0 0 4px 4px; transition: border-color .35s ease; border-color: {{ back.line }}"></div>
+    <div style="position: absolute; left: calc(3% - 4px); top: 100%; margin-top: -72px; width: 0; height: 0; border-left: 4.5px solid transparent; border-right: 4.5px solid transparent; border-bottom: 7px solid; transition: border-bottom-color .35s ease; border-bottom-color: {{ back.line }}"></div>
+    <div style="position: absolute; left: 50%; transform: translateX(-50%); top: 100%; margin-top: -68px; background: light-dark(#ffffff, #0d0d0d); padding: 0 10px; font-family: 'Roboto Mono', monospace; font-size: 11px; transition: color .35s ease; color: {{ back.fg }}">next step</div>
+
+    <div style="position: absolute; right: 0; top: 100%; margin-top: -34px; display: flex; align-items: center; gap: 8px; transition: opacity .35s ease; opacity: {{ exit.op }}">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: light-dark(#6b6b6b, #9a9a9a)">break →</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; border: 1px solid light-dark(#0f766e, #5eead4); color: light-dark(#0f766e, #5eead4); border-radius: 3px; padding: 5px 9px">StopReason.END_TURN</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: end; border-top: 1px solid light-dark(#e6e6e6, #262626); padding-top: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#0f766e, #5eead4)">{{ line }}</div>
+      <div style="font-size: 13.5px; line-height: 1.5; min-height: 42px; max-width: 62ch; color: light-dark(#3d3d3d, #b5b5b5); text-wrap: pretty">{{ caption }}</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: light-dark(#6b6b6b, #9a9a9a); margin-right: 6px">messages: {{ msgCount }}</div>
+      <button onClick="{{ prev }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">←</button>
+      <button onClick="{{ toggle }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 13px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer; min-width: 62px" style-hover="border-color: light-dark(#0f766e, #5eead4)">{{ playLabel }}</button>
+      <button onClick="{{ next }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">→</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:840,&quot;height&quot;:500}}">
+const STEPS = [
+  { line: "fitted = context.fit(messages)",
+    caption: "The full history may not fit in the window. What gets sent is not what you have.", msgs: 3 },
+  { line: "response = provider.complete(fitted, tools)",
+    caption: "The model proposes. It can write pytest -q, but it cannot know the exit code.", msgs: 3 },
+  { line: "messages.append(response.message)",
+    caption: "Persistence point. _record() appends and checkpoints in one operation \u2014 there is no uncheckpointed state.", msgs: 4 },
+  { line: "if not response.message.tool_calls: break",
+    caption: "The exit condition. No tool calls means the model is done talking. This is the only clean way out; everything else is a limit being hit.", msgs: 4 },
+  { line: "decision, reason = policy.check(call.name, call.arguments)",
+    caption: "The permission check runs before the tool, not after. A denied call returns a result to the model instead of raising.", msgs: 4 },
+  { line: "results.append(run(call))",
+    caption: "The side effect. This is the only line that changes the world.", msgs: 4 },
+  { line: "messages.append(Message(role=\"tool\", tool_results=results))",
+    caption: "Results go back as one message, and the loop goes round again with the model now able to see what happened.", msgs: 5 },
+  { line: "# no tool_calls \u2014 the run ends",
+    caption: "END_TURN means \u201cstopped talking,\u201d which is not at all the same as \u201csucceeded.\u201d Only a grader looking at the sandbox afterwards can answer that.", msgs: 5 },
+];
+
+class Component extends DCLogic {
+  state = { i: 0, playing: !matchMedia("(prefers-reduced-motion: reduce)").matches };
+
+  componentDidMount() { this.tick(); }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  tick() {
+    clearInterval(this.timer);
+    if (!this.state.playing) return;
+    this.timer = setInterval(() => this.setState(s => ({ i: (s.i + 1) % STEPS.length })), 2300);
+  }
+
+  go(d) {
+    this.setState(s => ({ i: (s.i + d + STEPS.length) % STEPS.length, playing: false }), () => this.tick());
+  }
+
+  node(idx) {
+    const active = this.state.i === idx;
+    const done = this.state.i > idx;
+    return {
+      line: active ? "light-dark(#0f766e, #5eead4)" : (done ? "light-dark(#c9c9c9, #3a3a3a)" : "light-dark(#e6e6e6, #262626)"),
+      bg: active ? "light-dark(#f0faf8, #10201f)" : "transparent",
+      glow: active ? "0 0 0 1px light-dark(#0f766e, #5eead4)" : "none",
+      fg: active ? "light-dark(#0f766e, #5eead4)" : (done ? "light-dark(#0d0d0d, #e9e9e9)" : "light-dark(#8a8a8a, #6b6b6b)"),
+      num: active ? "light-dark(#0f766e, #5eead4)" : "light-dark(#b8b8b8, #4a4a4a)",
+    };
+  }
+
+  renderVals() {
+    const i = this.state.i, s = STEPS[i];
+    const backActive = i === 6;
+    const exiting = i === 7;
+    return {
+      n0: this.node(0), n1: this.node(1), n2: this.node(2), n3: this.node(3),
+      n4: this.node(4), n5: this.node(5), n6: this.node(6),
+      back: {
+        line: backActive ? "light-dark(#0f766e, #5eead4)" : "light-dark(#e6e6e6, #262626)",
+        fg: backActive ? "light-dark(#0f766e, #5eead4)" : "light-dark(#8a8a8a, #6b6b6b)",
+      },
+      exit: { op: exiting ? 1 : 0.18 },
+      line: s.line,
+      caption: s.caption,
+      msgCount: s.msgs,
+      playLabel: this.state.playing ? "pause" : "play",
+      prev: () => this.go(-1),
+      next: () => this.go(1),
+      toggle: () => this.setState(s2 => ({ playing: !s2.playing }), () => this.tick()),
+    };
+  }
+}
+</script>
+</body>
+</html>

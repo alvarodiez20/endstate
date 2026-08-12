@@ -4,6 +4,11 @@ A tool is the only way an agent affects anything. Everything else it does is pro
 makes the tool layer the security boundary of the entire system, and it deserves to be treated like
 one.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/tools-and-sandbox.html"
+          height="665" loading="lazy" title="A tool call crossing the sandbox boundary"></iframe>
+</div>
+
 ## What a tool is
 
 Three things: a name, a JSON Schema describing its arguments, and a function.

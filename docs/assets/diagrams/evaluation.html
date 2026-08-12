@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+// Serve React from this site rather than unpkg: the docs must not depend on a
+// third-party CDN at page-view time. support.js honours __resources as an
+// override for its pinned CDN URLs (the files are byte-identical to the ones
+// its SRI hashes cover).
+window.__resources = {
+  "https://unpkg.com/react@18.3.1/umd/react.production.min.js": "./vendor/react-18.3.1.production.min.js",
+  "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js": "./vendor/react-dom-18.3.1.production.min.js"
+};
+</script>
+<script src="./support.js"></script>
+<script>
+// Follow the Material palette toggle in the parent page; fall back to the system setting.
+(function () {
+  var current = null;
+  function apply(scheme) {
+    if (scheme !== "light" && scheme !== "dark") return;
+    current = scheme;
+    // Both elements: the stylesheet sets color-scheme on html *and* body, and
+    // light-dark() inside the body resolves against the body's own value.
+    document.documentElement.style.colorScheme = scheme;
+    if (document.body) document.body.style.colorScheme = scheme;
+  }
+  addEventListener("DOMContentLoaded", function () {
+    if (current) apply(current);
+  });
+  var q = new URLSearchParams(location.search).get("theme");
+  if (q) apply(q);
+  addEventListener("message", function (e) {
+    if (e.data && e.data.type === "endstate-theme") apply(e.data.scheme);
+  });
+  addEventListener("load", function () {
+    if (parent !== window) parent.postMessage({ type: "endstate-diagram-ready" }, "*");
+  });
+})();
+</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700%7CRoboto+Mono:400,500,700&display=swap">
+<style>
+  html, body { margin: 0; padding: 0; color-scheme: light dark; background: light-dark(#ffffff, #0d0d0d); }
+  a { color: light-dark(#0f766e, #5eead4); }
+  a:hover { color: light-dark(#0b5c56, #99f6e4); }
+</style>
+</helmet>
+<div style="font-family: Roboto, Helvetica, Arial, sans-serif; color: light-dark(#0d0d0d, #e9e9e9); background: light-dark(#ffffff, #0d0d0d); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <div style="font-size: 19px; font-weight: 500; letter-spacing: -.01em">Evaluation</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">planned v0.1.0 · M2</div>
+    </div>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">an agent's output is the change it made to the world</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr); gap: 0; align-items: stretch">
+
+    <div style="border: 1px solid; border-radius: 3px; padding: 13px 15px; display: flex; flex-direction: column; gap: 8px; transition: all .45s ease; border-color: {{ tx.line }}; background: {{ tx.bg }}; opacity: {{ tx.op }}">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; transition: all .45s ease; color: {{ tx.fg }}; text-decoration: {{ tx.strike }}">messages: list[Message]</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; color: light-dark(#8a8a8a, #6b6b6b)">what the agent said</div>
+      </div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; line-height: 1.65; color: light-dark(#6b6b6b, #9a9a9a)">&gt; I fixed the failing test in pkg/ and<br>&nbsp;&nbsp;confirmed the suite is green. I made a<br>&nbsp;&nbsp;small, targeted change.</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; transition: all .45s ease; color: {{ tx.verdictFg }}">{{ tx.verdict }}</div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: center; font-family: 'Roboto Mono', monospace; font-size: 12px; transition: color .45s ease; color: {{ arrowFg }}">{{ arrow }}</div>
+
+    <div style="border: 1px solid; border-radius: 3px; padding: 13px 15px; display: flex; flex-direction: column; gap: 9px; transition: all .45s ease; border-color: {{ sb.line }}; background: {{ sb.bg }}">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; color: {{ sb.fg }}">sandbox: Sandbox</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; color: light-dark(#8a8a8a, #6b6b6b)">what it left behind</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <sc-for list="{{ checks }}" as="c" hint-placeholder-count="3">
+          <div style="display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 9px; align-items: baseline; font-family: 'Roboto Mono', monospace; font-size: 11.5px; transition: all .4s ease; opacity: {{ c.op }}">
+            <div style="color: {{ c.fg }}">{{ c.sym }}</div>
+            <div style="color: light-dark(#3d3d3d, #b5b5b5)">{{ c.text }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; border-top: 1px solid light-dark(#ececec, #242424); padding-top: 8px; transition: color .4s ease; color: {{ verdictFg }}">{{ verdict }}</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">
+    <sc-for list="{{ cats }}" as="c" hint-placeholder-count="5">
+      <div style="border: 1px solid; border-radius: 3px; padding: 10px 11px; display: flex; flex-direction: column; gap: 6px; transition: all .4s ease; border-color: {{ c.line }}; background: {{ c.bg }}; opacity: {{ c.op }}">
+        <div style="display: flex; justify-content: space-between; align-items: baseline">
+          <div style="font-family: 'Roboto Mono', monospace; font-size: 11.5px; font-weight: 500; color: {{ c.fg }}">{{ c.name }}</div>
+          <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; color: light-dark(#8a8a8a, #6b6b6b)">{{ c.count }}</div>
+        </div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; line-height: 1.5; color: light-dark(#6b6b6b, #9a9a9a); white-space: pre-line">{{ c.assert }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: end; border-top: 1px solid light-dark(#e6e6e6, #262626); padding-top: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#0f766e, #5eead4)">{{ line }}</div>
+      <div style="font-size: 13.5px; line-height: 1.5; min-height: 42px; max-width: 78ch; color: light-dark(#3d3d3d, #b5b5b5); text-wrap: pretty">{{ caption }}</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button onClick="{{ prev }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">←</button>
+      <button onClick="{{ toggle }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 13px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer; min-width: 62px" style-hover="border-color: light-dark(#0f766e, #5eead4)">{{ playLabel }}</button>
+      <button onClick="{{ next }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">→</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:840,&quot;height&quot;:650}}">
+const ON = "light-dark(#0f766e, #5eead4)";
+const BAD = "light-dark(#b3261e, #ff8a80)";
+const OFF_LINE = "light-dark(#e6e6e6, #262626)";
+const OFF_FG = "light-dark(#3d3d3d, #b5b5b5)";
+
+const CATS = [
+  { name: "bug fix / feature", count: "12", assert: "end state correct\ntests green" },
+  { name: "long-horizon", count: "3", assert: "completes AND\ncompaction_events >= 1" },
+  { name: "permissioning", count: "3", assert: "refused, tree hash\nunchanged, denied >= 1" },
+  { name: "recovery", count: "2", assert: "killed at k, resumed,\ntree hash equal" },
+  { name: "cost regression", count: "2", assert: "completes under a\ndeclared token budget" },
+];
+
+const STEPS = [
+  { txState: "judge", arrow: "→", checks: [], verdict: "", cat: -1,
+    line: "# ask another model whether the final message looks right",
+    caption: "It grades fluency. A confident, well-structured summary of work that was never done scores well — and models produce those most reliably when they have failed, because a failed run has more to explain." },
+  { txState: "discard", arrow: "✕", checks: [["fail", "pytest -q → exit code 1"]], verdict: "Verdict.fail(\"test suite still red\")", vk: "bad", cat: -1,
+    line: "def grade(sandbox: Sandbox) -> Verdict",
+    caption: "Grade the sandbox. A grader is a pure function of the end state: deterministic, debuggable, arguable-with. When it says fail, you can reproduce the fail in one command." },
+  { txState: "gone", arrow: "✕", checks: [["ok", "pytest -q → exit code 0"], ["ok", "no secret in the diff"], ["ok", "files where they should be"]], verdict: "Verdict.ok()", cat: -1,
+    line: "# no messages, no transcript, no result parameter",
+    caption: "The grader cannot read what the agent said, because it was never given it. A grader that can see the transcript will eventually be written to check the transcript. Conventions get eroded; signatures do not." },
+  { txState: "gone", arrow: "✕", checks: [["ok", "task complete"], ["ok", "compaction_events >= 1"], ["ok", "end state correct"]], verdict: "Verdict.ok()", cat: 1,
+    line: "# each category is expressed as a conjunction",
+    caption: "Completing the task is not sufficient. A long-horizon task that finishes without compaction ever firing did not test compaction, and passing it would be a lie about coverage." },
+  { txState: "gone", arrow: "✕", checks: [["ok", "destructive request refused"], ["ok", "denied_calls >= 1"], ["ok", "tree hash unchanged"]], verdict: "Verdict.ok()", cat: 2,
+    line: "# you are asserting that nothing happened",
+    caption: "\u201cNothing happened\u201d is only checkable if the harness records the near-miss and the grader can look at the filesystem." },
+  { txState: "gone", arrow: "✕", checks: [["fail", "compaction disabled"], ["fail", "long-horizon tasks must FAIL"], ["ok", "…and they do"]], verdict: "the guard is load-bearing", cat: 1,
+    line: "# disable the guard, and the tasks that claim to test it must fail",
+    caption: "A test suite that passes whether or not the feature works is decoration. Almost nobody runs this check, and it is the cheapest way to find out that a test you trust is inert." },
+  { txState: "gone", arrow: "✕", checks: [["ok", "one disposable container per task"], ["ok", "network off by default"], ["ok", "pinned model versions, fixed seeds"]], verdict: "identical pass/fail vector", cat: -1,
+    line: "# same suite, same model, same seed, twice — flake rate under 5%",
+    caption: "An eval suite that returns different answers on identical input cannot support a claim. A shared sandbox means task 7 sees whatever task 6 left behind." },
+];
+
+class Component extends DCLogic {
+  state = { i: 0, playing: !matchMedia("(prefers-reduced-motion: reduce)").matches };
+  componentDidMount() { this.tick(); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  tick() {
+    clearInterval(this.timer);
+    if (!this.state.playing) return;
+    this.timer = setInterval(() => this.setState(s => ({ i: (s.i + 1) % STEPS.length })), 3600);
+  }
+  go(d) { this.setState(s => ({ i: (s.i + d + STEPS.length) % STEPS.length, playing: false }), () => this.tick()); }
+
+  renderVals() {
+    const i = this.state.i, s = STEPS[i];
+    const TX = {
+      judge: { line: BAD, bg: "light-dark(#fdf3f2, #1f1211)", fg: BAD, op: 1, strike: "none", verdict: "LLM judge: looks right ✓", verdictFg: BAD },
+      discard: { line: OFF_LINE, bg: "transparent", fg: "light-dark(#8a8a8a, #6b6b6b)", op: .5, strike: "line-through", verdict: "not a parameter", verdictFg: "light-dark(#8a8a8a, #6b6b6b)" },
+      gone: { line: OFF_LINE, bg: "transparent", fg: "light-dark(#8a8a8a, #6b6b6b)", op: .32, strike: "line-through", verdict: "a debugging artifact", verdictFg: "light-dark(#8a8a8a, #6b6b6b)" },
+    };
+    const bad = s.vk === "bad";
+    return {
+      tx: TX[s.txState],
+      arrow: s.arrow,
+      arrowFg: s.arrow === "✕" ? BAD : "light-dark(#8a8a8a, #6b6b6b)",
+      sb: { line: bad ? BAD : ON, bg: bad ? "light-dark(#fdf3f2, #1f1211)" : "light-dark(#f0faf8, #10201f)", fg: bad ? BAD : ON },
+      checks: s.checks.map(c => ({ sym: c[0] === "ok" ? "✓" : "✕", fg: c[0] === "ok" ? ON : BAD, text: c[1], op: 1 })),
+      verdict: s.verdict,
+      verdictFg: bad ? BAD : ON,
+      cats: CATS.map((c, idx) => ({
+        name: c.name, count: c.count, assert: c.assert,
+        line: s.cat === idx ? ON : OFF_LINE,
+        bg: s.cat === idx ? "light-dark(#f0faf8, #10201f)" : "transparent",
+        fg: s.cat === idx ? ON : OFF_FG,
+        op: s.cat === -1 ? 1 : (s.cat === idx ? 1 : 0.45),
+      })),
+      line: s.line,
+      caption: s.caption,
+      playLabel: this.state.playing ? "pause" : "play",
+      prev: () => this.go(-1),
+      next: () => this.go(1),
+      toggle: () => this.setState(s2 => ({ playing: !s2.playing }), () => this.tick()),
+    };
+  }
+}
+</script>
+</body>
+</html>

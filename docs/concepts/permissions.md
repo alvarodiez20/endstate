@@ -3,6 +3,11 @@
 An agent that cannot be stopped is not deployable. This page is about making "the agent refused" into
 an outcome your system produces on purpose and your tests can assert on.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/permissions.html"
+          height="620" loading="lazy" title="How a permission decision is reached"></iframe>
+</div>
+
 ## The asymmetry
 
 Start here, because every other decision on this page follows from it:

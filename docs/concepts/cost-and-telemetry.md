@@ -3,6 +3,11 @@
 "Is the agent expensive?" is a question that should have a number. In most agent codebases it has a
 shrug, or worse, a confidently wrong number.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/cost-and-telemetry.html"
+          height="960" loading="lazy" title="From token usage to a cost number"></iframe>
+</div>
+
 ## Usage is not cost
 
 Two separate things, deliberately kept separate.

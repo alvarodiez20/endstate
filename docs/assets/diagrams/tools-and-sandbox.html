@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+// Serve React from this site rather than unpkg: the docs must not depend on a
+// third-party CDN at page-view time. support.js honours __resources as an
+// override for its pinned CDN URLs (the files are byte-identical to the ones
+// its SRI hashes cover).
+window.__resources = {
+  "https://unpkg.com/react@18.3.1/umd/react.production.min.js": "./vendor/react-18.3.1.production.min.js",
+  "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js": "./vendor/react-dom-18.3.1.production.min.js"
+};
+</script>
+<script src="./support.js"></script>
+<script>
+// Follow the Material palette toggle in the parent page; fall back to the system setting.
+(function () {
+  var current = null;
+  function apply(scheme) {
+    if (scheme !== "light" && scheme !== "dark") return;
+    current = scheme;
+    // Both elements: the stylesheet sets color-scheme on html *and* body, and
+    // light-dark() inside the body resolves against the body's own value.
+    document.documentElement.style.colorScheme = scheme;
+    if (document.body) document.body.style.colorScheme = scheme;
+  }
+  addEventListener("DOMContentLoaded", function () {
+    if (current) apply(current);
+  });
+  var q = new URLSearchParams(location.search).get("theme");
+  if (q) apply(q);
+  addEventListener("message", function (e) {
+    if (e.data && e.data.type === "endstate-theme") apply(e.data.scheme);
+  });
+  addEventListener("load", function () {
+    if (parent !== window) parent.postMessage({ type: "endstate-diagram-ready" }, "*");
+  });
+})();
+</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700%7CRoboto+Mono:400,500,700&display=swap">
+<style>
+  html, body { margin: 0; padding: 0; color-scheme: light dark; background: light-dark(#ffffff, #0d0d0d); }
+  a { color: light-dark(#0f766e, #5eead4); }
+  a:hover { color: light-dark(#0b5c56, #99f6e4); }
+</style>
+</helmet>
+<div style="font-family: Roboto, Helvetica, Arial, sans-serif; color: light-dark(#0d0d0d, #e9e9e9); background: light-dark(#ffffff, #0d0d0d); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <div style="font-size: 19px; font-weight: 500; letter-spacing: -.01em">Tools and the sandbox</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">agent/tools/base.py</div>
+    </div>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">defence in depth, layer by layer</div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 12px; font-family: 'Roboto Mono', monospace; font-size: 13px">
+    <span style="color: light-dark(#6b6b6b, #9a9a9a); font-size: 11px">call</span>
+    <span style="border: 1px solid; border-radius: 3px; padding: 6px 10px; transition: all .35s ease; border-color: {{ call.line }}; color: {{ call.fg }}; background: {{ call.bg }}">{{ call.text }}</span>
+    <span style="transition: opacity .35s ease; opacity: {{ verdict.op }}; color: {{ verdict.fg }}; font-size: 12px">{{ verdict.text }}</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 268px minmax(0, 1fr); gap: 20px; align-items: stretch">
+
+    <div style="border: 1px solid; border-radius: 3px; padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; transition: all .35s ease; border-color: {{ tool.line }}; background: {{ tool.bg }}">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12.5px; font-weight: 500; color: {{ tool.fg }}">class Tool(ABC):</div>
+      <div style="display: flex; flex-direction: column; gap: 5px; font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#3d3d3d, #b5b5b5)">
+        <div>name: str</div>
+        <div style="transition: color .35s ease; color: {{ descFg }}">description: str</div>
+        <div>parameters -&gt; JSON Schema</div>
+        <div>run(arguments, ctx) -&gt; str</div>
+      </div>
+      <div style="height: 1px; background: light-dark(#ececec, #242424); margin: 3px 0"></div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px">
+        <span style="font-family: 'Roboto Mono', monospace; font-size: 11px; border: 1px solid light-dark(#e0e0e0, #2e2e2e); border-radius: 3px; padding: 3px 7px; color: light-dark(#3d3d3d, #b5b5b5)">read</span>
+        <span style="font-family: 'Roboto Mono', monospace; font-size: 11px; border: 1px solid light-dark(#e0e0e0, #2e2e2e); border-radius: 3px; padding: 3px 7px; color: light-dark(#3d3d3d, #b5b5b5)">write</span>
+        <span style="font-family: 'Roboto Mono', monospace; font-size: 11px; border: 1px solid light-dark(#e0e0e0, #2e2e2e); border-radius: 3px; padding: 3px 7px; color: light-dark(#3d3d3d, #b5b5b5)">edit</span>
+        <span style="font-family: 'Roboto Mono', monospace; font-size: 11px; border: 1px solid light-dark(#e0e0e0, #2e2e2e); border-radius: 3px; padding: 3px 7px; color: light-dark(#3d3d3d, #b5b5b5)">glob</span>
+        <span style="font-family: 'Roboto Mono', monospace; font-size: 11px; border: 1px solid light-dark(#e0e0e0, #2e2e2e); border-radius: 3px; padding: 3px 7px; color: light-dark(#3d3d3d, #b5b5b5)">grep</span>
+        <span style="font-family: 'Roboto Mono', monospace; font-size: 11px; border: 1px solid; border-radius: 3px; padding: 3px 7px; transition: all .35s ease; border-color: {{ bash.line }}; color: {{ bash.fg }}; background: {{ bash.bg }}">bash</span>
+      </div>
+      <div style="font-size: 11px; line-height: 1.45; color: light-dark(#6b6b6b, #9a9a9a); transition: opacity .35s ease; opacity: {{ descNote.op }}">The description goes into the model's context on every single call. It is prompt engineering wearing a docstring costume, and it is billed accordingly.</div>
+    </div>
+
+    <div style="border: 1px solid; border-radius: 4px; padding: 12px; transition: all .35s ease; border-color: {{ l1.line }}; background: {{ l1.bg }}">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; transition: color .35s ease; color: {{ l1.fg }}">1 · disposable container</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a)">one per task · network off · planned v0.1.0</div>
+      </div>
+
+      <div style="border: 1px solid; border-radius: 4px; padding: 12px; transition: all .35s ease; border-color: {{ l2.line }}; background: {{ l2.bg }}">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px">
+          <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; transition: color .35s ease; color: {{ l2.fg }}">2 · PermissionPolicy</div>
+          <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a)">deny-list, before the command runs</div>
+        </div>
+
+        <div style="border: 1px solid; border-radius: 4px; padding: 12px; transition: all .35s ease; border-color: {{ l3.line }}; background: {{ l3.bg }}">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px">
+            <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; transition: color .35s ease; color: {{ l3.fg }}">3 · ToolContext</div>
+            <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a)">every tool receives it, none can bypass it</div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+            <div style="border: 1px solid; border-radius: 3px; padding: 9px 10px; transition: all .35s ease; border-color: {{ resolve.line }}; background: {{ resolve.bg }}">
+              <div style="font-family: 'Roboto Mono', monospace; font-size: 11.5px; font-weight: 500; transition: color .35s ease; color: {{ resolve.fg }}">resolve()</div>
+              <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a); line-height: 1.5; margin-top: 4px">workdir / path<br>both .resolve()d<br>then compared</div>
+            </div>
+            <div style="border: 1px solid; border-radius: 3px; padding: 9px 10px; transition: all .35s ease; border-color: {{ timeout.line }}; background: {{ timeout.bg }}">
+              <div style="font-family: 'Roboto Mono', monospace; font-size: 11.5px; font-weight: 500; transition: color .35s ease; color: {{ timeout.fg }}">timeout_s</div>
+              <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a); line-height: 1.5; margin-top: 4px">30.0<br>a hanging command<br>hangs the agent</div>
+            </div>
+            <div style="border: 1px solid; border-radius: 3px; padding: 9px 10px; transition: all .35s ease; border-color: {{ output.line }}; background: {{ output.bg }}">
+              <div style="font-family: 'Roboto Mono', monospace; font-size: 11.5px; font-weight: 500; transition: color .35s ease; color: {{ output.fg }}">max_output_chars</div>
+              <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a); line-height: 1.5; margin-top: 4px">20_000<br>... [48213 chars<br>truncated]</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: end; border-top: 1px solid light-dark(#e6e6e6, #262626); padding-top: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#0f766e, #5eead4)">{{ line }}</div>
+      <div style="font-size: 13.5px; line-height: 1.5; min-height: 42px; max-width: 72ch; color: light-dark(#3d3d3d, #b5b5b5); text-wrap: pretty">{{ caption }}</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button onClick="{{ prev }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">←</button>
+      <button onClick="{{ toggle }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 13px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer; min-width: 62px" style-hover="border-color: light-dark(#0f766e, #5eead4)">{{ playLabel }}</button>
+      <button onClick="{{ next }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">→</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:840,&quot;height&quot;:640}}">
+const ON = "light-dark(#0f766e, #5eead4)";
+const BAD = "light-dark(#b3261e, #ff8a80)";
+const OFF_LINE = "light-dark(#e6e6e6, #262626)";
+const OFF_FG = "light-dark(#3d3d3d, #b5b5b5)";
+
+const STEPS = [
+  { call: 'read({"path": "src/main.py"})', verdict: "", vk: "ok",
+    line: "run(arguments, ctx) -> str",
+    caption: "A tool is three things: a name, a JSON Schema describing its arguments, and a function. A tool is the only way an agent affects anything." },
+  { call: 'read({"path": "src/main.py"})', verdict: "", vk: "ok",
+    line: "description: str  # billed on every step of every run",
+    caption: "Vague descriptions produce tools the model uses at the wrong moment; verbose ones cost tokens on every step of every run." },
+  { call: 'read({"path": "../../../../etc/passwd"})', verdict: "", vk: "ok",
+    line: "# not from malice — from a plausible chain of reasoning",
+    caption: "Give a model a read tool and eventually it will ask for /etc/passwd. A check inside each tool fails for a boring reason: there are six tools now and twenty later, and the twelfth one will get it wrong." },
+  { call: 'read({"path": "../../../../etc/passwd"})', verdict: "ToolError: path escapes the working directory", vk: "bad",
+    line: "candidate = (root / relative).resolve()",
+    caption: "Resolution happens first, then containment is checked on the resolved result. The string never gets a vote, only the real path does — so ../ traversal, absolute paths and symlinks all fail the same way." },
+  { call: 'bash({"cmd": "npm install"})', verdict: "killed at 30.0s", vk: "bad",
+    line: "timeout_s: float = 30.0",
+    caption: "Without a timeout, a command waiting on a network that will never answer leaves the run stuck forever, holding whatever it holds." },
+  { call: 'grep({"pattern": "def "})', verdict: "truncated at 20_000 chars", vk: "bad",
+    line: "... [48213 chars truncated]",
+    caption: "Untruncated output blows the budget, triggers a compaction that throws away the actual task, and costs real money. The marker matters: silently truncated output teaches the model that a file ends where it does not." },
+  { call: 'bash({"cmd": "rm -rf /"})', verdict: "denied at layer 2", vk: "bad",
+    line: "# cwd pinning is not confinement",
+    caption: "Layer 1 is the only one that is actually a boundary. Layers 2 and 3 are what you have when you are running on a laptop rather than in a container — which is most of the time during development." },
+];
+
+class Component extends DCLogic {
+  state = { i: 0, playing: !matchMedia("(prefers-reduced-motion: reduce)").matches };
+  componentDidMount() { this.tick(); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  tick() {
+    clearInterval(this.timer);
+    if (!this.state.playing) return;
+    this.timer = setInterval(() => this.setState(s => ({ i: (s.i + 1) % STEPS.length })), 3200);
+  }
+  go(d) { this.setState(s => ({ i: (s.i + d + STEPS.length) % STEPS.length, playing: false }), () => this.tick()); }
+  box(on, bad) {
+    const c = bad ? BAD : ON;
+    return { line: on ? c : OFF_LINE, bg: on ? (bad ? "light-dark(#fdf3f2, #1f1211)" : "light-dark(#f0faf8, #10201f)") : "transparent", fg: on ? c : OFF_FG };
+  }
+  renderVals() {
+    const i = this.state.i, s = STEPS[i];
+    const bad = s.vk === "bad";
+    return {
+      call: Object.assign({ text: s.call }, this.box(true, bad && i !== 2)),
+      verdict: { op: s.verdict ? 1 : 0, fg: BAD, text: s.verdict },
+      tool: this.box(i === 0 || i === 1),
+      descFg: i === 1 ? ON : OFF_FG,
+      descNote: { op: i === 1 ? 1 : 0.25 },
+      bash: this.box(i === 6),
+      l1: this.box(i === 6),
+      l2: this.box(i === 6),
+      l3: this.box(i >= 2 && i <= 5),
+      resolve: this.box(i === 2 || i === 3, i === 3),
+      timeout: this.box(i === 4, true),
+      output: this.box(i === 5, true),
+      line: s.line,
+      caption: s.caption,
+      playLabel: this.state.playing ? "pause" : "play",
+      prev: () => this.go(-1),
+      next: () => this.go(1),
+      toggle: () => this.setState(s2 => ({ playing: !s2.playing }), () => this.tick()),
+    };
+  }
+}
+</script>
+</body>
+</html>

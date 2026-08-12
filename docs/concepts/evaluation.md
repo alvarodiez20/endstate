@@ -9,6 +9,11 @@ This is the page the project exists for. Everything before it is harness; this i
     is settled and the interfaces are specified. The code is not written yet, and this page says so
     rather than describing it in the present tense.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/evaluation.html"
+          height="605" loading="lazy" title="Grading the end state instead of the output"></iframe>
+</div>
+
 ## What is wrong with grading text
 
 The standard approach: run the agent, take its final message, ask another model whether it looks

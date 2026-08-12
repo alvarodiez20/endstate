@@ -9,6 +9,11 @@ day 90.
 
 The useful version is the list of things that break.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../assets/diagrams/concepts-map.html"
+          height="775" loading="lazy" title="Map of the eight concepts and how they connect"></iframe>
+</div>
+
 ## The eight problems
 
 Each page below takes one problem, explains why the obvious solution fails, and shows the code that

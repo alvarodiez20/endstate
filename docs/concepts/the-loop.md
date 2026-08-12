@@ -3,6 +3,11 @@
 Everything an agent does happens inside one `for` loop. This page walks through it line by line,
 because every other concept in these docs attaches to a specific point in it.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/the-loop.html"
+          height="570" loading="lazy" title="The agent loop, step by step"></iframe>
+</div>
+
 ## The shape
 
 Strip out the bookkeeping and the whole thing is this:

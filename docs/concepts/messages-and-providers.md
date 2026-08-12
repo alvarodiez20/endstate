@@ -4,6 +4,11 @@ Before anything interesting can happen, you need a definition of "conversation" 
 with more than one vendor. This is unglamorous and it is where a surprising number of agent codebases
 acquire a permanent limp.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/messages-and-providers.html"
+          height="830" loading="lazy" title="One message model, many provider wire formats"></iframe>
+</div>
+
 ## The problem
 
 Every provider represents the same conversation differently.

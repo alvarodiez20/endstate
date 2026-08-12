@@ -5,6 +5,11 @@ true for `--resume` to be correct?
 
 This is the least glamorous concept in agent engineering and the one with the sharpest edges.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/durability.html"
+          height="605" loading="lazy" title="Checkpointing and a correct resume"></iframe>
+</div>
+
 ## Why it matters more than it sounds
 
 Agent runs are long. Minutes to hours, across dozens of model calls. Over that window: laptops sleep,
