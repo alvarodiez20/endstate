@@ -4,7 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "endstate"
-version = "0.0.1"
+# Single source of truth is __init__.py, read by hatchling below. Release
+# automation edits one file; a second copy here would drift the first time a
+# bump landed in only one of them.
+dynamic = ["version"]
 description = "An agent harness with evals that grade the end state, not the output."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -51,8 +54,33 @@ docs = [
   "mkdocstrings[python]>=0.26,<1.0",
 ]
 
+[tool.hatch.version]
+path = "src/endstate/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/endstate"]
+
+[tool.semantic_release]
+# Conventional Commits decide the bump: feat -> minor, fix/perf -> patch,
+# `!` or a BREAKING CHANGE footer -> major. Anything else produces no release,
+# so docs and chore commits land on main without consuming a version.
+version_variables = ["src/endstate/__init__.py:__version__"]
+tag_format = "v{version}"
+commit_message = "chore(release): v{version} [skip ci]"
+# Nothing is built here. The GitHub Release is the deliverable; publishing to
+# PyPI is a separate, deliberate act — see .github/workflows/release.yml.
+build_command = ""
+# Pre-1.0, a breaking change bumps the minor rather than jumping to 1.0.0.
+# v1.0.0 is a decision this project makes on purpose, not one a `feat!:` makes.
+major_on_zero = false
+allow_zero_version = true
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
+
+[tool.semantic_release.changelog]
+exclude_commit_patterns = ["^chore\\(release\\):"]
 
 [tool.ruff]
 line-length = 100

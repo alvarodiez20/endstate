@@ -104,10 +104,15 @@ sane to hand an agent a shell.
 
 ```bash
 uv sync --group dev
-uv run pytest
-uv run ruff check .
-uv run mypy
+make check
 ```
+
+Trunk-based: short-lived branches cut from `main`, linear history, no merge commits. Versions are
+derived from [Conventional Commits](https://www.conventionalcommits.org/) — `feat:` bumps the minor,
+`fix:` the patch, and anything else lands without consuming a version. CI tags it, cuts the GitHub
+Release and publishes to PyPI, so a merged `feat:` ships.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licence
 

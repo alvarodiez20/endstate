@@ -13,10 +13,14 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+          # setup-uv fetches uv from the GitHub API. Anonymous requests share a
+          # per-IP limit with every other runner on that host, so without a
+          # token this step fails intermittently on a green tree.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv python install ${{ matrix.python-version }}
       - run: uv sync --group dev
       - run: uv run ruff check .
