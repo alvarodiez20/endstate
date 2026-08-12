@@ -13,6 +13,12 @@ Both of those are true at once, which is why this page is mostly about when *not
     does not solve them. This page is here so that the non-goal is an informed decision rather than
     an omission.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/subagents.html"
+          height="650" loading="lazy"
+          title="A lead agent fanning out to subagents, and what it costs"></iframe>
+</div>
+
 ## The problem it actually solves
 
 Not "the task is complicated." Context.

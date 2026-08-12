@@ -11,6 +11,12 @@ opposite directions.
     clothes, and the distinction is the first section below. Retrieval and vector stores are an
     explicit [non-goal](../design/non-goals.md).
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/memory.html"
+          height="740" loading="lazy"
+          title="Durability compared with memory across a context reset"></iframe>
+</div>
+
 ## Durability is not memory
 
 Both write to disk. Both survive process death. They answer different questions:

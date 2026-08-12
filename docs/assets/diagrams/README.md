@@ -1,6 +1,7 @@
-# Concepts diagrams
+# Diagrams
 
-Nine self-contained animated diagrams, one per page in `docs/concepts/`. Each is an
+Eighteen self-contained animated diagrams: one per page in `docs/concepts/`, plus the home
+page, both getting-started pages, and the decision log. Each is an
 `<iframe>` embedded from the Markdown; see `docs/stylesheets/diagrams.css` and
 `docs/assets/diagrams/embed.js` for the wrapper and the theme bridge.
 
@@ -10,7 +11,7 @@ This file is excluded from the built site by `exclude_docs` in `mkdocs.yml`.
 
 | File | What it is |
 | --- | --- |
-| `*.html` (nine) | One diagram each. Self-contained: markup, styles, and a small component at the bottom of the file. |
+| `*.html` (eighteen) | One diagram each. Self-contained: markup, styles, and a small component at the bottom of the file. |
 | `support.js` | Generated runtime that renders those components. Not written by hand — see below. |
 | `embed.js` | Loaded by the parent page. Pushes the Material palette scheme into each iframe so the diagrams follow the light/dark toggle rather than only the OS setting. |
 | `vendor/` | React 18.3.1 and ReactDOM 18.3.1 UMD production builds. |

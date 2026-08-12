@@ -12,6 +12,12 @@ can close by adding more tools.
     even if you never write a `SKILL.md`. Where the section describes what this harness does, it
     links to source. Everything else is described as what it is: someone else's design.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/skills.html"
+          height="760" loading="lazy"
+          title="The three levels of progressive disclosure in a skill"></iframe>
+</div>
+
 ## The problem skills solve
 
 Your agent has a `bash` tool. Your organisation has a deployment procedure with eleven steps, four of
@@ -160,6 +166,13 @@ If this harness grew skills, the seam is narrow and worth naming:
 
 That is the honest reason skills are cheap to adopt and expensive to secure: the loading mechanism is
 just the file tools you already have, which means the trust boundary is exactly where it always was.
+
+## The concrete half
+
+Everything above is mechanism. [Skill examples](skill-examples.md) is the other half: which skills
+already exist for engineering work and are worth installing, three complete `SKILL.md` files written
+against this repository's actual conventions, and — if you are building a coding agent rather than
+configuring one — what belongs in the box and what emphatically does not.
 
 ## What to check in your own agent
 

@@ -46,6 +46,7 @@ threat model that all of the others feed into, which is a bad thing to leave imp
 | # | Page | The problem it describes | Status here |
 | --- | --- | --- | --- |
 | 9 | [Skills](skills.md) | Procedural knowledge does not fit in a system prompt and cannot go in a tool description | Not built |
+| 9a | [Skill examples](skill-examples.md) | What to install, three worked `SKILL.md` files, and what to bundle in a coding agent | Reference |
 | 10 | [MCP and tool discovery](mcp-and-tool-discovery.md) | Tools arrive at runtime, from strangers, by the hundred | Not built |
 | 11 | [Memory](memory.md) | Compaction decides what to forget. Something has to decide what to keep. | Not built |
 | 12 | [Subagents and orchestration](subagents.md) | One context window is sometimes the wrong unit of work — and usually the right one | [Non-goal](../design/non-goals.md) |

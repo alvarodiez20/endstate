@@ -15,6 +15,12 @@ every capability described on the preceding pages is also an ingredient in this 
     nobody has is a reliable defence, and this page says so rather than implying the sandbox closes
     the problem.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/prompt-injection.html"
+          height="590" loading="lazy"
+          title="The lethal trifecta, and defences under adaptive attack"></iframe>
+</div>
+
 ## The mechanism
 
 Language models follow instructions in content. That is what makes them useful, and they do not
