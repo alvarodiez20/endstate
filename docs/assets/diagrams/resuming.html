@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+// Serve React from this site rather than unpkg: the docs must not depend on a
+// third-party CDN at page-view time. support.js honours __resources as an
+// override for its pinned CDN URLs (the files are byte-identical to the ones
+// its SRI hashes cover).
+window.__resources = {
+  "https://unpkg.com/react@18.3.1/umd/react.production.min.js": "./vendor/react-18.3.1.production.min.js",
+  "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js": "./vendor/react-dom-18.3.1.production.min.js"
+};
+</script>
+<script src="./support.js"></script>
+<script>
+// Follow the Material palette toggle in the parent page; fall back to the system setting.
+(function () {
+  var current = null;
+  function apply(scheme) {
+    if (scheme !== "light" && scheme !== "dark") return;
+    current = scheme;
+    // Both elements: the stylesheet sets color-scheme on html *and* body, and
+    // light-dark() inside the body resolves against the body's own value.
+    document.documentElement.style.colorScheme = scheme;
+    if (document.body) document.body.style.colorScheme = scheme;
+  }
+  addEventListener("DOMContentLoaded", function () {
+    if (current) apply(current);
+  });
+  var q = new URLSearchParams(location.search).get("theme");
+  if (q) apply(q);
+  addEventListener("message", function (e) {
+    if (e.data && e.data.type === "endstate-theme") apply(e.data.scheme);
+  });
+  addEventListener("load", function () {
+    if (parent !== window) parent.postMessage({ type: "endstate-diagram-ready" }, "*");
+  });
+})();
+</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700%7CRoboto+Mono:400,500,700&display=swap">
+<style>
+  html, body { margin: 0; padding: 0; color-scheme: light dark; background: light-dark(#ffffff, #0d0d0d); }
+  a { color: light-dark(#0f766e, #5eead4); }
+  a:hover { color: light-dark(#0b5c56, #99f6e4); }
+</style>
+</helmet>
+<div style="font-family: Roboto, Helvetica, Arial, sans-serif; color: light-dark(#0d0d0d, #e9e9e9); background: light-dark(#ffffff, #0d0d0d); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 18px; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <div style="font-size: 19px; font-weight: 500; letter-spacing: -.01em">Resuming a run</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">.endstate/sessions.sqlite3</div>
+    </div>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; transition: color .35s ease; color: {{ statusFg }}">{{ status }}</div>
+  </div>
+
+  <div style="border: 1px solid; border-radius: 3px; padding: 10px 13px; font-family: 'Roboto Mono', monospace; font-size: 12px; transition: all .4s ease; border-color: {{ cmd.line }}; background: {{ cmd.bg }}; color: {{ cmd.fg }}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ cmdText }}</div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) 268px; gap: 18px; align-items: start">
+
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <sc-for list="{{ log }}" as="l" hint-placeholder-count="6">
+        <div style="display: grid; grid-template-columns: 30px 92px minmax(0, 1fr) 108px; gap: 10px; align-items: center; border: 1px solid; border-radius: 3px; padding: 7px 10px; font-family: 'Roboto Mono', monospace; font-size: 11px; transition: all .45s ease; border-color: {{ l.line }}; background: {{ l.bg }}; opacity: {{ l.op }}">
+          <div style="color: light-dark(#8a8a8a, #6b6b6b)">{{ l.step }}</div>
+          <div style="color: {{ l.fg }}">{{ l.role }}</div>
+          <div style="color: light-dark(#6b6b6b, #9a9a9a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ l.body }}</div>
+          <div style="text-align: right; transition: color .45s ease; color: {{ l.markFg }}">{{ l.mark }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="border: 1px solid; border-radius: 3px; padding: 13px 15px; display: flex; flex-direction: column; gap: 8px; min-height: 160px; transition: all .4s ease; border-color: {{ panel.line }}; background: {{ panel.bg }}">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; color: {{ panel.fg }}">{{ panelTitle }}</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; line-height: 1.6; white-space: pre-line; color: light-dark(#3d3d3d, #b5b5b5)">{{ panelBody }}</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: end; border-top: 1px solid light-dark(#e6e6e6, #262626); padding-top: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#0f766e, #5eead4)">{{ line }}</div>
+      <div style="font-size: 13.5px; line-height: 1.5; min-height: 42px; max-width: 78ch; color: light-dark(#3d3d3d, #b5b5b5); text-wrap: pretty">{{ caption }}</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button onClick="{{ prev }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">←</button>
+      <button onClick="{{ toggle }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 13px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer; min-width: 62px" style-hover="border-color: light-dark(#0f766e, #5eead4)">{{ playLabel }}</button>
+      <button onClick="{{ next }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">→</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:840,&quot;height&quot;:540}}">
+const ON = "light-dark(#0f766e, #5eead4)";
+const BAD = "light-dark(#b3261e, #ff8a80)";
+const OFF_LINE = "light-dark(#e6e6e6, #262626)";
+const OFF_FG = "light-dark(#3d3d3d, #b5b5b5)";
+
+// step, role, body, state: done | pending | new | future | ok
+const S = [
+  { cmd: "endstate sessions", status: "every run is a session",
+    log: [["", "a3f9c211d4e0", "newest first", "done"], ["", "7b1e08cc39a2", "", "done"]],
+    title: "checkpointed after each step",
+    body: "nothing needs to be enabled.\n\nsessions live in\n.endstate/sessions.sqlite3,\nrelative to where you invoke\nthe CLI.",
+    line: "endstate sessions",
+    caption: "An ordinary SQLite file — open it with any client if you want to read the raw message log." },
+  { cmd: "# Ctrl-C at step 8", bad: true, status: "interrupted",
+    log: [["6", "assistant", "tool_calls: edit", "done"], ["7", "tool", "results: ok", "done"], ["8", "assistant", "tool_calls: [a, b, c]", "done"], ["9", "tool", "results: [a ✓, b ✓]", "pending"]],
+    title: "c was requested,\nnever executed",
+    body: "every completed step is\nalready on disk.",
+    line: "# you keep the work rather than paying for it twice",
+    caption: "You hit Ctrl-C, or the process died." },
+  { cmd: "endstate run --resume a3f9c211d4e0 --workdir /tmp/endstate-demo", status: "form one · finish an interrupted run",
+    log: [["8", "assistant", "tool_calls: [a, b, c]", "done"], ["9", "tool", "results: [a ✓, b ✓, c ✓]", "ok"], ["10", "assistant", "continues", "ok"]],
+    title: "omit the prompt",
+    body: "any tool calls that were\nrequested but never executed\nare run first, then the agent\ncarries on.\n\nno new instruction is added.\nit picks up what it was doing.",
+    line: "--resume <session-id>, no prompt",
+    caption: "Outstanding calls are settled before anything else happens." },
+  { cmd: "endstate run \"now add a test for the edge case\" --resume a3f9c211d4e0", status: "form two · continue the conversation",
+    log: [["8", "assistant", "tool_calls: [a, b, c]", "done"], ["9", "tool", "results: [a ✓, b ✓, c ✓]", "ok"], ["10", "user", "now add a test for the edge case", "new"], ["11", "assistant", "continues, with full context", "ok"]],
+    title: "pass a prompt",
+    body: "the stored history is loaded,\nany outstanding calls are\nsettled, THEN your prompt is\nappended.",
+    line: "# order matters — settle before you append",
+    caption: "Adding the instruction first would bury the unfinished batch mid-history, where nothing would ever complete it." },
+  { cmd: "endstate run --resume a3f9c211d4e0 --workdir /somewhere/else", bad: true, status: "pass the same --workdir",
+    log: [["", "session", "stores the conversation", "done"], ["", "workdir", "stores the files", "pending"]],
+    title: "the session is not the filesystem",
+    body: "point it somewhere else and the\nagent will be reasoning about\nfiles that are not there.",
+    line: "--workdir /tmp/endstate-demo",
+    caption: "The session stores the conversation, not the filesystem." },
+  { cmd: "# verified at every kill point in the test suite", status: "the guarantee",
+    log: [["", "uninterrupted", "tree hash a91f…", "ok"], ["", "killed + resumed", "tree hash a91f…", "ok"]],
+    title: "same end state",
+    body: "compared by hashing the sandbox\nrather than by reading the\ntranscript.",
+    line: "assert resumed_tree_hash == baseline",
+    caption: "Ctrl-C between steps, a kill mid-batch, a crash before a tool ran — all resume exactly." },
+  { cmd: "# a crash INSIDE a tool call", bad: true, status: "the one case to know about",
+    log: [["", "write", "same bytes twice", "ok"], ["", "git commit", "two commits", "pending"]],
+    title: "resume converges when\nthe tool is idempotent",
+    body: "if the process dies after a\nside effect but before anything\nrecords it, the only option is\nto run the call again.\n\nnothing can distinguish \u201cit\nnever ran\u201d from \u201cit ran and the\nrecord was lost.\u201d",
+    line: "# that would need transactional side effects",
+    caption: "If a run died mid-bash and the command was not idempotent, check the state before resuming." },
+];
+
+class Component extends DCLogic {
+  state = { i: 0, playing: !matchMedia("(prefers-reduced-motion: reduce)").matches };
+  componentDidMount() { this.tick(); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  tick() {
+    clearInterval(this.timer);
+    if (!this.state.playing) return;
+    this.timer = setInterval(() => this.setState(s => ({ i: (s.i + 1) % S.length })), 3600);
+  }
+  go(d) { this.setState(s => ({ i: (s.i + d + S.length) % S.length, playing: false }), () => this.tick()); }
+  renderVals() {
+    const s = S[this.state.i];
+    const LS = {
+      done: { line: OFF_LINE, bg: "transparent", fg: OFF_FG, mark: "checkpointed", markFg: "light-dark(#8a8a8a, #6b6b6b)", op: 1 },
+      pending: { line: BAD, bg: "light-dark(#fdf3f2, #1f1211)", fg: BAD, mark: "no result", markFg: BAD, op: 1 },
+      ok: { line: ON, bg: "light-dark(#f0faf8, #10201f)", fg: ON, mark: "settled", markFg: ON, op: 1 },
+      new: { line: ON, bg: "light-dark(#f0faf8, #10201f)", fg: ON, mark: "appended after", markFg: ON, op: 1 },
+      future: { line: OFF_LINE, bg: "transparent", fg: "light-dark(#b0b0b0, #545454)", mark: "—", markFg: "light-dark(#c4c4c4, #3a3a3a)", op: .5 },
+    };
+    return {
+      status: s.status,
+      statusFg: s.bad ? BAD : "light-dark(#6b6b6b, #9a9a9a)",
+      cmdText: s.cmd,
+      cmd: { line: s.bad ? BAD : ON, bg: s.bad ? "light-dark(#fdf3f2, #1f1211)" : "light-dark(#f0faf8, #10201f)", fg: s.bad ? BAD : ON },
+      log: s.log.map(l => Object.assign({ step: l[0], role: l[1], body: l[2] }, LS[l[3]])),
+      panel: { line: s.bad ? BAD : ON, bg: s.bad ? "light-dark(#fdf3f2, #1f1211)" : "light-dark(#f0faf8, #10201f)", fg: s.bad ? BAD : ON },
+      panelTitle: s.title,
+      panelBody: s.body,
+      line: s.line,
+      caption: s.caption,
+      playLabel: this.state.playing ? "pause" : "play",
+      prev: () => this.go(-1),
+      next: () => this.go(1),
+      toggle: () => this.setState(s2 => ({ playing: !s2.playing }), () => this.tick()),
+    };
+  }
+}
+</script>
+</body>
+</html>

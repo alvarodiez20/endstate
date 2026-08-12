@@ -6,6 +6,12 @@ find out why it looks like this instead of guessing.
 Each row names the alternative that was rejected, because a decision with no rejected alternative is
 not a decision.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/decisions.html"
+          height="535" loading="lazy"
+          title="The eight design decisions and their rejected alternatives"></iframe>
+</div>
+
 ## D1 — Build the loop from primitives
 
 **Rejected:** LangGraph, or any agent framework.

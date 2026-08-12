@@ -49,6 +49,12 @@ The final message, then a summary table:
 
 Every row is a claim you can check.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/first-run.html"
+          height="535" loading="lazy"
+          title="The run summary table, row by row"></iframe>
+</div>
+
 **`steps`** — model calls, not tools. Four means it read, edited, verified, and reported. Twenty
 would mean it thrashed.
 

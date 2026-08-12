@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+// Serve React from this site rather than unpkg: the docs must not depend on a
+// third-party CDN at page-view time. support.js honours __resources as an
+// override for its pinned CDN URLs (the files are byte-identical to the ones
+// its SRI hashes cover).
+window.__resources = {
+  "https://unpkg.com/react@18.3.1/umd/react.production.min.js": "./vendor/react-18.3.1.production.min.js",
+  "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js": "./vendor/react-dom-18.3.1.production.min.js"
+};
+</script>
+<script src="./support.js"></script>
+<script>
+// Follow the Material palette toggle in the parent page; fall back to the system setting.
+(function () {
+  var current = null;
+  function apply(scheme) {
+    if (scheme !== "light" && scheme !== "dark") return;
+    current = scheme;
+    // Both elements: the stylesheet sets color-scheme on html *and* body, and
+    // light-dark() inside the body resolves against the body's own value.
+    document.documentElement.style.colorScheme = scheme;
+    if (document.body) document.body.style.colorScheme = scheme;
+  }
+  addEventListener("DOMContentLoaded", function () {
+    if (current) apply(current);
+  });
+  var q = new URLSearchParams(location.search).get("theme");
+  if (q) apply(q);
+  addEventListener("message", function (e) {
+    if (e.data && e.data.type === "endstate-theme") apply(e.data.scheme);
+  });
+  addEventListener("load", function () {
+    if (parent !== window) parent.postMessage({ type: "endstate-diagram-ready" }, "*");
+  });
+})();
+</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700%7CRoboto+Mono:400,500,700&display=swap">
+<style>
+  html, body { margin: 0; padding: 0; color-scheme: light dark; background: light-dark(#ffffff, #0d0d0d); }
+  a { color: light-dark(#0f766e, #5eead4); }
+  a:hover { color: light-dark(#0b5c56, #99f6e4); }
+</style>
+</helmet>
+<div style="font-family: Roboto, Helvetica, Arial, sans-serif; color: light-dark(#0d0d0d, #e9e9e9); background: light-dark(#ffffff, #0d0d0d); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 18px; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <div style="font-size: 19px; font-weight: 500; letter-spacing: -.01em">Subagents and orchestration</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">an explicit non-goal</div>
+    </div>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; transition: color .35s ease; color: {{ statusFg }}">{{ status }}</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 178px minmax(0, 1fr) 150px; gap: 16px; align-items: center">
+
+    <div style="border: 1px solid; border-radius: 3px; padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; transition: all .4s ease; border-color: {{ lead.line }}; background: {{ lead.bg }}">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; color: {{ lead.fg }}">lead agent</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; line-height: 1.55; color: light-dark(#6b6b6b, #9a9a9a)">plans, writes the plan<br>to memory, spawns,<br>synthesises</div>
+      <div style="height: 1px; background: light-dark(#ececec, #242424); margin: 2px 0"></div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; transition: color .45s ease; color: {{ leadCtxFg }}">context: {{ leadCtx }}</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <sc-for list="{{ workers }}" as="w" hint-placeholder-count="3">
+        <div style="display: grid; grid-template-columns: 30px minmax(0, 1fr) 96px; gap: 10px; align-items: center; border: 1px solid; border-radius: 3px; padding: 8px 10px; transition: all .5s ease; border-color: {{ w.line }}; background: {{ w.bg }}; opacity: {{ w.op }}">
+          <div style="font-family: 'Roboto Mono', monospace; font-size: 11.5px; font-weight: 500; color: {{ w.fg }}">{{ w.id }}</div>
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; color: light-dark(#6b6b6b, #9a9a9a)">{{ w.note }}</div>
+            <div style="height: 5px; border-radius: 1px; background: light-dark(#f0f0f0, #1c1c1c); overflow: hidden">
+              <div style="height: 100%; transition: width .8s cubic-bezier(.4,0,.2,1), background .4s ease; width: {{ w.w }}; background: {{ w.bar }}"></div>
+            </div>
+          </div>
+          <div style="font-family: 'Roboto Mono', monospace; font-size: 10.5px; text-align: right; transition: color .45s ease; color: {{ w.retFg }}">{{ w.ret }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px; border: 1px solid; border-radius: 3px; padding: 12px 13px; transition: all .4s ease; border-color: {{ spend.line }}; background: {{ spend.bg }}">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; color: light-dark(#8a8a8a, #6b6b6b)">token spend</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 21px; font-weight: 500; letter-spacing: -.01em; transition: color .5s ease; color: {{ spend.fg }}">{{ spendValue }}</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; line-height: 1.5; color: light-dark(#6b6b6b, #9a9a9a)">{{ spendNote }}</div>
+    </div>
+  </div>
+
+  <div style="border: 1px solid; border-radius: 3px; padding: 13px 15px; display: flex; flex-direction: column; gap: 8px; min-height: 116px; transition: all .4s ease; border-color: {{ panel.line }}; background: {{ panel.bg }}">
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; color: {{ panel.fg }}">{{ panelTitle }}</div>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 11.5px; line-height: 1.6; white-space: pre-line; color: light-dark(#3d3d3d, #b5b5b5)">{{ panelBody }}</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: end; border-top: 1px solid light-dark(#e6e6e6, #262626); padding-top: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#0f766e, #5eead4)">{{ line }}</div>
+      <div style="font-size: 13.5px; line-height: 1.5; min-height: 42px; max-width: 78ch; color: light-dark(#3d3d3d, #b5b5b5); text-wrap: pretty">{{ caption }}</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button onClick="{{ prev }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">←</button>
+      <button onClick="{{ toggle }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 13px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer; min-width: 62px" style-hover="border-color: light-dark(#0f766e, #5eead4)">{{ playLabel }}</button>
+      <button onClick="{{ next }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">→</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:840,&quot;height&quot;:600}}">
+const ON = "light-dark(#0f766e, #5eead4)";
+const BAD = "light-dark(#b3261e, #ff8a80)";
+const OFF_LINE = "light-dark(#e6e6e6, #262626)";
+const OFF_FG = "light-dark(#3d3d3d, #b5b5b5)";
+
+const S = [
+  { lead: true, work: 0, spend: "1×", spendNote: "one context window", leadCtx: "everything, forever", bad: true, status: "the problem it actually solves",
+    workers: [["A", "40 sources, read in one window", "0%", ""], ["B", "", "0%", ""], ["C", "", "0%", ""]],
+    title: "not \u201cthe task is complicated\u201d — context",
+    body: "a research task touching forty sources reads a few\nhundred thousand tokens to produce a two-page answer.\nnearly all of it is intermediate: dead ends, near-misses,\npages that turned out to be irrelevant.",
+    line: "# you pay for it on every subsequent step, and attention degrades",
+    caption: "A subagent is a way to spend a hundred thousand tokens somewhere the main agent will never see them." },
+  { lead: true, work: 3, spend: "15×", spendNote: "vs a chat\n~4× vs one agent", leadCtx: "conclusions only", status: "orchestrator and workers",
+    workers: [["A", "own context, own tools", "100%", "~1_500 tok"], ["B", "own context, own tools", "100%", "~1_500 tok"], ["C", "own context, own tools", "100%", "~1_500 tok"]],
+    title: "a lossy compressor with a tool budget",
+    body: "each worker explores extensively and returns a distilled\nsummary — 1,000–2,000 tokens from a subagent that may\nhave consumed tens of thousands.",
+    line: "# the lead agent only ever sees conclusions",
+    caption: "That asymmetry is the entire value proposition." },
+  { lead: true, work: 3, spend: "+90.2%", spendNote: "on Anthropic's\ninternal research eval", leadCtx: "conclusions only", win: true, status: "the number that should govern the decision",
+    workers: [["A", "Sonnet 4 worker", "100%", "~1_500 tok"], ["B", "Sonnet 4 worker", "100%", "~1_500 tok"], ["C", "Sonnet 4 worker", "100%", "~1_500 tok"]],
+    title: "it works, and a large part of why is that it spends more",
+    body: "Opus 4 lead + Sonnet 4 subagents beat single-agent\nOpus 4 by 90.2%. on BrowseComp, token usage alone\nexplained 80% of the performance variance\nbetween systems.",
+    line: "# is this better than spending four times as much on one agent?",
+    caption: "That is the honest question, and it is rarely run. Read the two figures together rather than separately." },
+  { lead: true, work: 2, spend: "15×", spendNote: "independent strands\nonly", leadCtx: "conclusions only", status: "when it fits",
+    workers: [["A", "board members, company 1", "100%", "self-contained"], ["B", "board members, company 2", "100%", "self-contained"], ["C", "coding — every caller's context changes", "38%", "bad fit"]],
+    title: "the discriminator is independence",
+    body: "fits          breadth-first search, independent evaluation\n              of many candidates, parallel hypotheses\ndoes not fit  anything sharing evolving state; step n+1\n              depending on step n",
+    line: "# coding is the canonical bad fit",
+    caption: "Which is worth noticing given how much multi-agent tooling is aimed at coding." },
+  { lead: true, work: -1, spend: "50", spendNote: "subagents spawned\nfor a simple query", leadCtx: "unbounded", bad: true, status: "the failure modes are new ones",
+    workers: [["A", "confident, irrelevant summary", "100%", "unverifiable"], ["B", "misread its source", "100%", "clean and wrong"], ["C", "…and 47 more", "100%", "uncapped"]],
+    title: "no single-agent equivalent",
+    body: "delegation is a prompt-engineering problem in itself\nerrors compound silently — compression is lossy by design\ncost is superlinear and hard to cap\ndebugging loses the trace: fan out and the transcript\nis no longer a total order",
+    line: "# max_steps bounds one loop. bounding a tree of loops needs a shared budget.",
+    caption: "A vague instruction produces a confident, irrelevant summary — and the lead agent has no way to tell, because it never saw the work." },
+  { lead: true, work: 0, spend: "1×", spendNote: "no second agent\nrequired", leadCtx: "conclusions only", win: true, status: "the pattern worth taking",
+    workers: [["—", "bash: grep a large log, print three lines", "100%", "3 lines"], ["—", "code execution against MCP tools", "100%", "5 rows"], ["—", "a script bundled in a skill", "100%", "one number"]],
+    title: "the context firewall",
+    body: "run a bounded piece of work somewhere its intermediate\noutput cannot pollute the main context, and return only\nthe conclusion.",
+    line: "# most of the reliability gain is available inside a single agent, at 1×",
+    caption: "By being disciplined about what is allowed into the context window. Reach for the full topology only when the task is provably breadth-first." },
+  { lead: false, work: 3, spend: "15×", spendNote: "and a policy per loop", leadCtx: "conclusions only", bad: true, status: "permissions and injection",
+    workers: [["A", "read an attacker-controlled page", "100%", "tidy summary"], ["B", "own tool calls, own loop", "100%", "own policy?"], ["C", "own tool calls, own loop", "100%", "own policy?"]],
+    title: "compression launders provenance",
+    body: "a subagent that read an attacker-controlled page returns\na tidy summary with no marker saying so. the lead agent\nacts on attacker text having lost every signal that it\nwas untrusted.",
+    line: "# deny-by-default has to hold at the point of execution, for every loop",
+    caption: "A policy enforced by prompting the lead agent is no policy at all. Fan-out also distributes the three trifecta properties across agents while the system still has all three." },
+];
+
+class Component extends DCLogic {
+  state = { i: 0, playing: !matchMedia("(prefers-reduced-motion: reduce)").matches };
+  componentDidMount() { this.tick(); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  tick() {
+    clearInterval(this.timer);
+    if (!this.state.playing) return;
+    this.timer = setInterval(() => this.setState(s => ({ i: (s.i + 1) % S.length })), 3800);
+  }
+  go(d) { this.setState(s => ({ i: (s.i + d + S.length) % S.length, playing: false }), () => this.tick()); }
+  renderVals() {
+    const s = S[this.state.i];
+    const c = s.bad ? BAD : ON;
+    return {
+      status: s.status,
+      statusFg: s.bad ? BAD : "light-dark(#6b6b6b, #9a9a9a)",
+      lead: { line: s.lead ? c : OFF_LINE, bg: s.lead ? (s.bad ? "light-dark(#fdf3f2, #1f1211)" : "light-dark(#f0faf8, #10201f)") : "transparent", fg: s.lead ? c : OFF_FG },
+      leadCtx: s.leadCtx,
+      leadCtxFg: s.leadCtx === "conclusions only" ? ON : BAD,
+      workers: s.workers.map((w, idx) => {
+        const on = s.work === -1 ? true : idx < s.work;
+        return {
+          id: w[0], note: w[1], w: w[2], ret: w[3],
+          line: on ? c : OFF_LINE,
+          bg: on ? (s.bad ? "light-dark(#fdf3f2, #1f1211)" : "light-dark(#f0faf8, #10201f)") : "transparent",
+          fg: on ? c : OFF_FG,
+          bar: on ? c : "light-dark(#d8d8d8, #303030)",
+          retFg: on ? c : "light-dark(#8a8a8a, #6b6b6b)",
+          op: on ? 1 : 0.5,
+        };
+      }),
+      spend: { line: s.bad ? BAD : (s.win ? ON : OFF_LINE), bg: s.bad ? "light-dark(#fdf3f2, #1f1211)" : (s.win ? "light-dark(#f0faf8, #10201f)" : "transparent"), fg: s.bad ? BAD : (s.win ? ON : OFF_FG) },
+      spendValue: s.spend,
+      spendNote: s.spendNote,
+      panel: { line: c, bg: s.bad ? "light-dark(#fdf3f2, #1f1211)" : "light-dark(#f0faf8, #10201f)", fg: c },
+      panelTitle: s.title,
+      panelBody: s.body,
+      line: s.line,
+      caption: s.caption,
+      playLabel: this.state.playing ? "pause" : "play",
+      prev: () => this.go(-1),
+      next: () => this.go(1),
+      toggle: () => this.setState(s2 => ({ playing: !s2.playing }), () => this.tick()),
+    };
+  }
+}
+</script>
+</body>
+</html>

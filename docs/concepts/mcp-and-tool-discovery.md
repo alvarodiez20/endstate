@@ -13,6 +13,12 @@ worked fine at six tools.
     This page exists because the six-tool assumption is doing quiet work throughout the rest of this
     section, and it is worth knowing exactly which parts of the design depend on it.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/mcp-and-tool-discovery.html"
+          height="710" loading="lazy"
+          title="Tool schemas collapsing from 150,000 tokens to 2,000"></iframe>
+</div>
+
 ## What MCP is, in one paragraph
 
 The Model Context Protocol is an open standard for connecting agents to external systems. Instead of

@@ -12,6 +12,12 @@ can close by adding more tools.
     even if you never write a `SKILL.md`. Where the section describes what this harness does, it
     links to source. Everything else is described as what it is: someone else's design.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/skills.html"
+          height="760" loading="lazy"
+          title="The three levels of progressive disclosure in a skill"></iframe>
+</div>
+
 ## The problem skills solve
 
 Your agent has a `bash` tool. Your organisation has a deployment procedure with eleven steps, four of

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+// Serve React from this site rather than unpkg: the docs must not depend on a
+// third-party CDN at page-view time. support.js honours __resources as an
+// override for its pinned CDN URLs (the files are byte-identical to the ones
+// its SRI hashes cover).
+window.__resources = {
+  "https://unpkg.com/react@18.3.1/umd/react.production.min.js": "./vendor/react-18.3.1.production.min.js",
+  "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js": "./vendor/react-dom-18.3.1.production.min.js"
+};
+</script>
+<script src="./support.js"></script>
+<script>
+// Follow the Material palette toggle in the parent page; fall back to the system setting.
+(function () {
+  var current = null;
+  function apply(scheme) {
+    if (scheme !== "light" && scheme !== "dark") return;
+    current = scheme;
+    // Both elements: the stylesheet sets color-scheme on html *and* body, and
+    // light-dark() inside the body resolves against the body's own value.
+    document.documentElement.style.colorScheme = scheme;
+    if (document.body) document.body.style.colorScheme = scheme;
+  }
+  addEventListener("DOMContentLoaded", function () {
+    if (current) apply(current);
+  });
+  var q = new URLSearchParams(location.search).get("theme");
+  if (q) apply(q);
+  addEventListener("message", function (e) {
+    if (e.data && e.data.type === "endstate-theme") apply(e.data.scheme);
+  });
+  addEventListener("load", function () {
+    if (parent !== window) parent.postMessage({ type: "endstate-diagram-ready" }, "*");
+  });
+})();
+</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700%7CRoboto+Mono:400,500,700&display=swap">
+<style>
+  html, body { margin: 0; padding: 0; color-scheme: light dark; background: light-dark(#ffffff, #0d0d0d); }
+  a { color: light-dark(#0f766e, #5eead4); }
+  a:hover { color: light-dark(#0b5c56, #99f6e4); }
+</style>
+</helmet>
+<div style="font-family: Roboto, Helvetica, Arial, sans-serif; color: light-dark(#0d0d0d, #e9e9e9); background: light-dark(#ffffff, #0d0d0d); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 18px; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <div style="font-size: 19px; font-weight: 500; letter-spacing: -.01em">Memory</div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#6b6b6b, #9a9a9a)">status: endstate has none, deliberately</div>
+    </div>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; transition: color .35s ease; color: {{ statusFg }}">{{ status }}</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px">
+    <div style="border: 1px solid; border-radius: 3px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; transition: all .4s ease; border-color: {{ dur.line }}; background: {{ dur.bg }}">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; color: {{ dur.fg }}">durability</div>
+      <div style="display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: 3px 12px; font-family: 'Roboto Mono', monospace; font-size: 11px; line-height: 1.45; color: light-dark(#6b6b6b, #9a9a9a)">
+        <div>question</div><div style="color: light-dark(#3d3d3d, #b5b5b5)">&quot;where was I in this run?&quot;</div>
+        <div>written by</div><div>the harness, automatically</div>
+        <div>content</div><div>everything, verbatim</div>
+        <div>lifetime</div><div>one run</div>
+        <div>fails as</div><div>replayed side effects</div>
+      </div>
+    </div>
+    <div style="border: 1px solid; border-radius: 3px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; transition: all .4s ease; border-color: {{ mem.line }}; background: {{ mem.bg }}">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; color: {{ mem.fg }}">memory</div>
+      <div style="display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: 3px 12px; font-family: 'Roboto Mono', monospace; font-size: 11px; line-height: 1.45; color: light-dark(#6b6b6b, #9a9a9a)">
+        <div>question</div><div style="color: light-dark(#3d3d3d, #b5b5b5)">&quot;what outlives this run?&quot;</div>
+        <div>written by</div><div>the agent, deliberately</div>
+        <div>content</div><div>a curated subset, in its own words</div>
+        <div>lifetime</div><div>many runs</div>
+        <div>fails as</div><div>confidently acting on a stale note</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 214px minmax(0, 1fr); gap: 18px; align-items: stretch">
+
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <sc-for list="{{ files }}" as="f" hint-placeholder-count="3">
+        <div style="border: 1px solid; border-radius: 3px; padding: 9px 11px; transition: all .45s ease; border-color: {{ f.line }}; background: {{ f.bg }}; opacity: {{ f.op }}">
+          <div style="font-family: 'Roboto Mono', monospace; font-size: 11.5px; font-weight: 500; color: {{ f.fg }}">{{ f.name }}</div>
+          <div style="font-size: 10.5px; line-height: 1.4; margin-top: 3px; color: light-dark(#6b6b6b, #9a9a9a)">{{ f.what }}</div>
+        </div>
+      </sc-for>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 10px; line-height: 1.5; color: light-dark(#8a8a8a, #6b6b6b); padding-top: 4px">a directory is already a<br>memory system</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; gap: 3px; align-items: stretch; height: 54px">
+        <sc-for list="{{ ctx }}" as="c" hint-placeholder-count="8">
+          <div style="border: 1px solid; border-radius: 2px; display: flex; align-items: flex-end; padding: 5px; overflow: hidden; transition: all .55s cubic-bezier(.4,0,.2,1); flex: {{ c.flex }}; border-color: {{ c.line }}; background: {{ c.bg }}; opacity: {{ c.op }}">
+            <div style="font-family: 'Roboto Mono', monospace; font-size: 9px; white-space: nowrap; color: {{ c.fg }}">{{ c.label }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="border: 1px solid; border-radius: 3px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; flex: 1; transition: all .4s ease; border-color: {{ panel.line }}; background: {{ panel.bg }}">
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; font-weight: 500; color: {{ panel.fg }}">{{ panelTitle }}</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11.5px; line-height: 1.6; white-space: pre-line; color: light-dark(#3d3d3d, #b5b5b5)">{{ panelBody }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: end; border-top: 1px solid light-dark(#e6e6e6, #262626); padding-top: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: light-dark(#0f766e, #5eead4)">{{ line }}</div>
+      <div style="font-size: 13.5px; line-height: 1.5; min-height: 42px; max-width: 78ch; color: light-dark(#3d3d3d, #b5b5b5); text-wrap: pretty">{{ caption }}</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button onClick="{{ prev }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">←</button>
+      <button onClick="{{ toggle }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 13px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer; min-width: 62px" style-hover="border-color: light-dark(#0f766e, #5eead4)">{{ playLabel }}</button>
+      <button onClick="{{ next }}" style="font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 6px 11px; border: 1px solid light-dark(#d4d4d4, #333); background: transparent; color: light-dark(#0d0d0d, #e9e9e9); border-radius: 3px; cursor: pointer" style-hover="border-color: light-dark(#0f766e, #5eead4)">→</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:840,&quot;height&quot;:640}}">
+const ON = "light-dark(#0f766e, #5eead4)";
+const BAD = "light-dark(#b3261e, #ff8a80)";
+const OFF_LINE = "light-dark(#e6e6e6, #262626)";
+const OFF_FG = "light-dark(#3d3d3d, #b5b5b5)";
+
+const FILES = [
+  { name: "NOTES.md", what: "what I tried, what worked, what is still broken" },
+  { name: "PLAN.md", what: "the decomposition, with items ticked off" },
+  { name: "findings/", what: "one file per investigated thread" },
+];
+
+// context strip: array of [label, weight, state]
+const FULL = [["system", 1, "keep"], ["task", 1, "keep"], ["step 3", 2, "keep"], ["step 7", 3, "keep"], ["step 12", 3, "keep"], ["step 18", 2, "keep"], ["step 24", 2, "keep"], ["step 31", 1, "keep"]];
+const AFTER1 = [["system", 1, "keep"], ["task", 1, "keep"], ["summary", 1.6, "sum"], ["step 24", 2, "keep"], ["step 31", 1, "keep"]];
+const AFTER5 = [["system", 1, "keep"], ["task", 1, "keep"], ["summary of a summary", 2.6, "lossy"], ["step 31", 1, "keep"]];
+const RESET = [["system", 1, "keep"], ["task", 1, "keep"], ["read NOTES.md", 2.2, "note"]];
+
+const S = [
+  { side: "both", ctx: FULL, files: -1, status: "they are not the same problem",
+    title: "a checkpoint is a transcript. a memory is a claim.",
+    body: "both write to disk. both survive process death.\nthe second one can be wrong in a way the first cannot,\nand that is the whole difficulty.",
+    line: "# durability answers \"where was I\". memory answers \"what did I learn\".",
+    caption: "endstate has durability — a SQLite checkpoint so a killed run can resume. That is a different thing wearing similar clothes." },
+  { side: "dur", ctx: AFTER1, files: -1, status: "compaction pass 1",
+    title: "lossy by construction",
+    body: "DropOldest deletes the middle.\nSummariseMiddle compresses it.\nthe losses stack.",
+    line: "CompactionEvent(dropped_messages=4)",
+    caption: "A run long enough to compact will compact several times." },
+  { side: "dur", ctx: AFTER5, files: -1, bad: true, status: "compaction pass 5",
+    title: "a summary of a summary",
+    body: "the single most valuable fact in the whole history is\noften \u201cI already tried that and it did not work\u201d —\nprecisely the kind of detail compaction discards as\nold tool noise.",
+    line: "# compaction is a strategy for staying under a limit",
+    caption: "It is not a strategy for remembering. For a forty-minute task that is survivable; for a migration that runs for hours, or a task resumed tomorrow, it is not." },
+  { side: "mem", ctx: AFTER5, files: 0, status: "structured note-taking",
+    title: "the mechanism is boringly simple",
+    body: "the agent writes to a file outside the context window\nand reads it back later.\n\nno infrastructure, no embeddings, no retrieval model.\na file and the read/write tools it already has.",
+    line: "write({\"path\": \"NOTES.md\", \"content\": \"tried X on step 12 — did not work\"})",
+    caption: "Claude playing Pokémon kept tallies, drew maps of explored regions, and noted which attacks worked against which opponents — then read its own notes after each context reset. Nobody prescribed the structure; it invented one because it had a filesystem." },
+  { side: "mem", ctx: RESET, files: 0, status: "after a context reset",
+    title: "the notes survive what compaction could not",
+    body: "read NOTES.md → the agent knows what it already tried,\nin its own words, across runs.",
+    line: "# a file nobody opens is not memory",
+    caption: "Which means it has to be discoverable: a predictable path, or a line in the system prompt saying it exists. The unlisted-capability problem again." },
+  { side: "mem", ctx: RESET, files: 1, bad: true, status: "what makes it hard",
+    title: "written before it is needed · read back · goes stale",
+    body: "the agent must decide at step 12 that something will\nmatter at step 40. models are mediocre at this by\ndefault and much better when the harness makes it\nroutine.\n\n\u201cthe auth tests are red\u201d is a fact about a moment.\ntimestamps in notes are not decoration.",
+    line: "# staleness is invisible in a context window",
+    caption: "Read three runs later, a note is indistinguishable from something the agent just observed. And an append-only NOTES.md eventually needs compaction of its own — the recursion is not a joke." },
+  { side: "mem", ctx: RESET, files: 2, bad: true, status: "a persistence surface is an attack surface",
+    title: "memory is content the agent reads\nand trusts more than average",
+    body: "a poisoned note survives every context reset.\nit is the one part of the system explicitly designed\nnot to be forgotten.",
+    line: "# see: prompt injection",
+    caption: "Who else can write to it?" },
+  { side: "mem", ctx: RESET, files: 0, status: "why memory is an end-state problem",
+    title: "a memory is a file the agent wrote",
+    body: "which makes it a side effect,\nwhich makes it part of the end state,\nwhich makes it something a grader can inspect\nwithout reading a single message.",
+    line: "assert (workdir / \"NOTES.md\").exists()",
+    caption: "\u201cDid the agent record what it learned?\u201d is not a judgement call about a transcript. Memory, unlike most things here, is straightforwardly testable — and that is where the tests should live." },
+];
+
+class Component extends DCLogic {
+  state = { i: 0, playing: !matchMedia("(prefers-reduced-motion: reduce)").matches };
+  componentDidMount() { this.tick(); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  tick() {
+    clearInterval(this.timer);
+    if (!this.state.playing) return;
+    this.timer = setInterval(() => this.setState(s => ({ i: (s.i + 1) % S.length })), 3600);
+  }
+  go(d) { this.setState(s => ({ i: (s.i + d + S.length) % S.length, playing: false }), () => this.tick()); }
+  renderVals() {
+    const s = S[this.state.i];
+    const CS = {
+      keep: { line: OFF_LINE, bg: "transparent", fg: "light-dark(#8a8a8a, #6b6b6b)", op: 1 },
+      sum: { line: OFF_LINE, bg: "light-dark(#fafafa, #151515)", fg: "light-dark(#a8a8a8, #5a5a5a)", op: .75 },
+      lossy: { line: BAD, bg: "light-dark(#fdf3f2, #1f1211)", fg: BAD, op: 1 },
+      note: { line: ON, bg: "light-dark(#f0faf8, #10201f)", fg: ON, op: 1 },
+    };
+    return {
+      status: s.status,
+      statusFg: s.bad ? BAD : "light-dark(#6b6b6b, #9a9a9a)",
+      dur: { line: s.side === "dur" || s.side === "both" ? ON : OFF_LINE, bg: s.side === "dur" || s.side === "both" ? "light-dark(#f0faf8, #10201f)" : "transparent", fg: s.side === "dur" || s.side === "both" ? ON : OFF_FG },
+      mem: { line: s.side === "mem" || s.side === "both" ? ON : OFF_LINE, bg: s.side === "mem" || s.side === "both" ? "light-dark(#f0faf8, #10201f)" : "transparent", fg: s.side === "mem" || s.side === "both" ? ON : OFF_FG },
+      ctx: s.ctx.map(c => Object.assign({ label: c[0], flex: c[1] }, CS[c[2]])),
+      files: FILES.map((f, idx) => ({
+        name: f.name, what: f.what,
+        line: s.files === idx ? (s.bad ? BAD : ON) : OFF_LINE,
+        bg: s.files === idx ? (s.bad ? "light-dark(#fdf3f2, #1f1211)" : "light-dark(#f0faf8, #10201f)") : "transparent",
+        fg: s.files === idx ? (s.bad ? BAD : ON) : OFF_FG,
+        op: s.files === -1 ? 0.5 : 1,
+      })),
+      panel: { line: s.bad ? BAD : ON, bg: s.bad ? "light-dark(#fdf3f2, #1f1211)" : "light-dark(#f0faf8, #10201f)", fg: s.bad ? BAD : ON },
+      panelTitle: s.title,
+      panelBody: s.body,
+      line: s.line,
+      caption: s.caption,
+      playLabel: this.state.playing ? "pause" : "play",
+      prev: () => this.go(-1),
+      next: () => this.go(1),
+      toggle: () => this.setState(s2 => ({ playing: !s2.playing }), () => this.tick()),
+    };
+  }
+}
+</script>
+</body>
+</html>

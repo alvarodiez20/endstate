@@ -2,6 +2,12 @@
 
 Every run is a session, checkpointed to SQLite after each step. Nothing needs to be enabled.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="../../assets/diagrams/resuming.html"
+          height="500" loading="lazy"
+          title="The two forms of --resume"></iframe>
+</div>
+
 ## List sessions
 
 ```bash

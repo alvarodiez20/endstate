@@ -27,6 +27,12 @@ pip install endstate
     The harness works. The eval runner lands in v0.1.0. These docs describe what exists today and
     say so explicitly when something is planned rather than shipped.
 
+<div class="endstate-diagram-scroll">
+  <iframe class="endstate-diagram" src="assets/diagrams/hero.html"
+          height="645" loading="lazy"
+          title="The endstate thesis: the transcript is discarded, the sandbox is graded"></iframe>
+</div>
+
 ---
 
 ## These docs have two jobs
