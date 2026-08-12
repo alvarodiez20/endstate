@@ -1,5 +1,13 @@
 # ![endstate](assets/brand/svg/endstate-lockup.svg#only-light){ width="260" }![endstate](assets/brand/svg/endstate-lockup-white.svg#only-dark){ width="260" }
 
+[![ci](https://img.shields.io/github/actions/workflow/status/alvarodiez20/endstate/ci.yml?branch=main&label=ci)](https://github.com/alvarodiez20/endstate/actions/workflows/ci.yml)
+[![docs](https://img.shields.io/github/actions/workflow/status/alvarodiez20/endstate/docs.yml?branch=main&label=docs)](https://github.com/alvarodiez20/endstate/actions/workflows/docs.yml)
+[![pypi](https://img.shields.io/pypi/v/endstate)](https://pypi.org/project/endstate/)
+[![python](https://img.shields.io/pypi/pyversions/endstate)](https://pypi.org/project/endstate/)
+[![licence](https://img.shields.io/github/license/alvarodiez20/endstate)](https://github.com/alvarodiez20/endstate/blob/main/LICENSE)
+[![ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![mypy: strict](https://img.shields.io/badge/mypy-strict-2a6db2)](https://github.com/alvarodiez20/endstate/blob/main/pyproject.toml)
+
 **An agent harness with evals that grade the end state, not the output.**
 
 Most agent evaluations grade text. They ask a model whether an answer *looks* right. That is cheap

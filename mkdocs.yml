@@ -10,6 +10,7 @@ copyright: MIT licensed.
 
 theme:
   name: material
+  custom_dir: overrides
   logo: assets/brand/svg/endstate-mark-white.svg
   favicon: assets/brand/svg/favicon.svg
   icon:
@@ -51,6 +52,9 @@ exclude_docs: |
   assets/brand/README.md
   assets/diagrams/README.md
 
+hooks:
+  - hooks/page_source.py
+
 plugins:
   - search
   - mkdocstrings:
@@ -88,9 +92,11 @@ markdown_extensions:
 
 extra_css:
   - stylesheets/diagrams.css
+  - stylesheets/copy-page.css
 
 extra_javascript:
   - assets/diagrams/embed.js
+  - assets/js/copy-page.js
 
 extra:
   social:

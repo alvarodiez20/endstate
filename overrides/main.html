@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{#
+  A copy-the-page button, for handing a page to a model or a colleague. It sits
+  at the top of the content column and copies the page's Markdown source, not
+  the rendered text — the source keeps the code fences, tables and admonitions
+  that make the page worth pasting. `hooks/page_source.py` writes that source
+  into the built site so the button works offline and on a local `mkdocs serve`,
+  with no call out to GitHub.
+#}
+{% block content %}
+  {% if page and page.file and page.file.src_uri.endswith(".md") %}
+    <button
+      class="endstate-copy-page"
+      type="button"
+      data-source="{{ base_url }}/{{ page.file.src_uri }}.txt"
+      title="Copy this page as Markdown"
+    >
+      <span class="endstate-copy-page__label">Copy page</span>
+    </button>
+  {% endif %}
+  {{ super() }}
+{% endblock %}
