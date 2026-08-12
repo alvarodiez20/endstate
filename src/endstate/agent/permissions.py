@@ -12,10 +12,11 @@ not explicitly permitted, because the failure modes are asymmetric.
 from __future__ import annotations
 
 import re
-from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+from endstate._compat import StrEnum
 
 
 class Decision(StrEnum):
