@@ -76,6 +76,35 @@ because the loop only sees messages. Only a [grader](evaluation.md) looking at t
 can answer that. `END_TURN` means "stopped talking," which is not at all the same as "succeeded" —
 and conflating those two is the single most common way agent metrics end up lying.
 
+## Why long runs fail so much more than short ones
+
+The loop is the same code at step 3 and at step 300. Success rate is not.
+
+METR measures this as a model's **time horizon**: the length of task — in human-expert minutes — that
+an agent completes with 50% reliability. The 2025 result was that this length had been
+[doubling roughly every seven months](https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/)
+over the preceding six years; METR now maintains a
+[live version of the chart](https://metr.org/time-horizons/), which is the one to check rather than
+any figure quoted here. It is a capability metric rather than a harness metric, but it is the number
+that tells you how ambitious a task your loop can be pointed at.
+
+The more useful result for a harness author is Toby Ord's re-reading of that data. Fitting the same
+task suite with the simplest possible model — a **constant probability of failing during each minute
+of work** — reproduces it well, which implies success decays *exponentially* with task length and
+that each agent has a characteristic
+[half-life](https://arxiv.org/abs/2505.05115).
+
+If that model holds, two things follow directly for the code above:
+
+- **Reliability per step is the whole game.** A small improvement in per-step failure rate compounds
+  across the run. This is why an unhelpful tool error, a truncated file read, or a lost task
+  statement matter far more than they look: each is a bump in the hazard rate, paid on every step.
+- **There is no length at which a long run becomes safe.** You cannot fix a long-horizon failure by
+  adding steps. You fix it by lowering the per-step failure rate or by shortening the task.
+
+Ord is explicit that whether this generalises beyond that one task suite is unknown. Treat it as a
+sharp hypothesis rather than a law — but a hypothesis that predicts the right shape of failure.
+
 ## Why `max_steps` is not optional
 
 A model that gets a confusing tool result will often try the same thing again. And again. Without a
@@ -93,6 +122,51 @@ a slow, expensive, plausible-looking loop that never terminates.
   effects. If the model writes "I will now delete the config" in its message text, nothing happens.
 - **It does not hide tool errors.** An error is a result like any other. Agents recover from errors
   they can see and fail silently on ones they can't.
+
+## What the loop is missing: reasoning state
+
+The five-line loop above assumes a turn is text plus tool calls. That was true when it was written
+and it is no longer quite true.
+
+Current models emit **thinking** as a distinct kind of content, and with tool use they can think
+*between* tool calls rather than only before them — Anthropic calls this
+[interleaved thinking](https://platform.claude.com/docs/en/build-with-claude/thinking#interleaved-thinking).
+The harness consequence is not philosophical, it is mechanical: those blocks have to be handed back
+on the next call, unmodified, or the provider rejects the request or the model loses its own train
+of thought mid-task.
+
+Note what that does to the annotations above. Step ⑥ — "results go back and the loop goes round
+again" — was the only place reasoning happened between tool calls in the original design. Now some of
+it happens inside the provider's turn, in content the harness must transport but cannot inspect.
+
+`Message` in this harness has no field for that. It is the most significant thing the type model
+does not represent, and it is discussed where it belongs, on
+[Messages and providers](messages-and-providers.md).
+
+## Open problems
+
+Things the loop does not solve, and that nobody has cleanly solved:
+
+**Knowing when it is done.** `END_TURN` means "stopped asking for tools." There is no reliable
+signal for "and the work is correct," which is the entire reason this project grades the
+[end state](evaluation.md) instead. Self-verification — asking the model whether it finished — fails
+for the obvious reason: the same confusion that produced the wrong answer produces the wrong
+self-assessment.
+
+**Whether a step is the right unit.** `max_steps` bounds iterations, not effort. One step can read a
+40,000-token file; another can echo a string. Budgeting in tokens or in wall-clock is more honest and
+harder to reason about, and no consensus exists on which ceiling should be primary.
+
+**Where recovery should live.** This harness pushes all retry behaviour to the model on the grounds
+that harness retries compete with the model's own recovery and destroy reproducibility. That is a
+defensible position, not a settled one; production harnesses commonly do both, and there is no
+public evidence saying which wins.
+
+**Whether the loop should be a loop at all.** A visible alternative is to let the model write code
+that orchestrates several tool calls at once, so control flow executes in a sandbox rather than a
+round-trip at a time — see [MCP and tool discovery](mcp-and-tool-discovery.md). That collapses steps
+and breaks the property that every side effect is preceded by a permission check the harness made.
+Nobody has published a convincing answer on how to keep both.
 
 ## Where to go next
 

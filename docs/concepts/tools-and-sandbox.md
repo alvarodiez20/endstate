@@ -84,6 +84,16 @@ grounds that it starts with `foo/`.
 
 There is exactly one function to audit, and the test suite attacks it directly with escape attempts.
 
+!!! note "This ordering is a known production bug class"
+
+    Getting it backwards is not a hypothetical. Anthropic lists it among the gotchas from building
+    Claude Cowork's file mounts:
+    [symlink resolution has to happen *before* path validation](https://www.anthropic.com/engineering/how-we-contain-claude),
+    not after, or a symlink inside an authorised folder can point outside it and escape.
+
+    Validate-then-resolve reads almost identically to resolve-then-validate and is wrong. If you
+    write this function yourself, that is the line to review twice.
+
 ## Two limits that are not about security
 
 `ToolContext` carries two other fields, and both exist because of the same failure mode.
@@ -130,6 +140,43 @@ a tool *returns* can contain instructions. A `read` tool is an untrusted-content
 turns the container from a convenience into the control. See
 [Prompt injection](prompt-injection.md).
 
+## What containment looks like in shipped products
+
+"One disposable container" is not the only shape, and it is worth knowing the alternatives before
+committing to it. Anthropic's
+[write-up of how it contains Claude](https://www.anthropic.com/engineering/how-we-contain-claude)
+describes three, chosen by how much the user can be expected to supervise:
+
+| Pattern | Mechanism | Blast radius | Where it fits |
+| --- | --- | --- | --- |
+| Ephemeral container | gVisor, server-side, per-session filesystem | Their infrastructure, not your machine | The agent never touches the user's files |
+| OS-level sandbox | Seatbelt (macOS) / bubblewrap (Linux); reads allowed, writes confined to the workspace, network denied by default | The local workspace | The user can read bash and judge an exception |
+| Sealed VM | Vendor hypervisor, own kernel, only the chosen folder mounted, credentials never enter the guest | The mounted folder | The user cannot be expected to judge anything |
+
+The middle row is the interesting one for a harness like this. It is cheaper than a container — no
+image, no daemon, native latency — and it is
+[open source](https://github.com/anthropic-experimental/sandbox-runtime), so the boundary is
+auditable. Anthropic reports it cut permission prompts by 84%, which is the practical argument: a
+real perimeter is what lets you stop asking.
+
+Three lessons from that piece transfer directly, and all three are uncomfortable:
+
+**An egress allowlist is a capability grant, not a destination filter.** Cowork allowed
+`api.anthropic.com` because the product cannot function without it. A malicious file in the workspace
+carried hidden instructions and an attacker's API key; Claude read other files and uploaded them
+through the Files API to the attacker's account. The proxy checked the destination, saw an approved
+domain, and passed it. *The sandbox worked perfectly and the data still left.* Every function
+reachable through any allowed domain is inside your perimeter.
+
+**The weakest layer is the one you built yourself.** Across every deployment described, gVisor,
+seccomp and the hypervisors held. The custom allowlist proxy is what broke — twice. Prefer boring
+primitives that have absorbed more adversarial attention than your code ever will.
+
+**Isolation costs you visibility.** Enterprise security teams asked why their endpoint detection
+could not see inside the VM; the answer is that the same boundary keeps EDR out. If something is
+going to run agents inside your organisation, the observability conversation arrives right behind the
+containment one.
+
 ## Tools return strings
 
 `run()` returns `str`, not a rich object, because the return value's only destination is a model's
@@ -140,6 +187,31 @@ The same applies to errors. `ToolError` is caught by the loop and converted into
 `is_error=True` — it never propagates out and kills the run. A tool failing is a normal event in an
 agent's life; the model reads the error and tries something else, which is precisely the behaviour
 you want and precisely what an uncaught exception would deny you.
+
+## Open problems
+
+**Tool output is an attack surface and inspecting it is expensive.** A `read` of a poisoned README
+is indistinguishable, at the type level, from a `read` of a good one. The current best practice is to
+route tool results through a small fast classifier before they enter the model's context — which adds
+latency to every call and is a probabilistic defence in front of a probabilistic system. The
+alternative, checking afterwards, does not work: once a poisoned result has steered the agent into
+exfiltrating data, the log shows a successful authorised call and nothing else. See
+[Prompt injection](prompt-injection.md).
+
+**Remote tools cannot be pinned.** A locally installed tool is auditable — read the code, pin the
+version, know it will not change. A hosted MCP server can change behaviour any time after you
+approved it, so install-time trust does not survive. Nobody has a good answer beyond ongoing review
+and running unknown tools against fake data first.
+
+**Nobody agrees on what a tool result should be.** This harness returns `str` on the grounds that a
+model context is the only destination. Structured returns, resource references and out-of-band
+artefacts all have advocates, and the choice constrains what the harness can filter or truncate
+without understanding the payload.
+
+**Confinement and usefulness genuinely trade off.** `cwd` pinning is not confinement, network-off
+breaks dependency installation, and read-only mounts break the tasks people actually want. Each
+tightening removes a class of real work, and there is no principled way to pick the line — only the
+observation that the right answer depends on whether a human who can read bash is watching.
 
 ## Writing your own
 

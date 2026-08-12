@@ -16,6 +16,41 @@ of thousands. A twenty-step run on a real repository will exceed any window curr
 
 And the growth is not gentle. It is one `grep` away from a step that adds 40,000 tokens.
 
+## The window is not the real limit
+
+Running out of window is the obvious reason to compact. It is not the first one, and framing the
+whole problem as a capacity problem gets the design subtly wrong.
+
+Chroma's [context rot](https://research.trychroma.com/context-rot) study evaluated 18 frontier models
+— GPT-4.1, Claude 4, Gemini 2.5 and Qwen3 families — on tasks deliberately kept trivial, including
+retrieving a single planted fact and replicating text verbatim. Every one of the 18 got worse as
+input length grew, and the degradation began **well before the window filled**. This is not overflow;
+it is a gradient that starts at a fraction of the advertised capacity.
+
+Three findings are worth carrying into a compaction strategy:
+
+- **Similarity matters more than position.** When the planted fact was worded unlike the question,
+  accuracy fell faster with length. Retrieval is not uniform lookup; it is closer to matching, and
+  matching degrades.
+- **A single distractor hurts.** One plausible-but-wrong passage lowered accuracy, and the more
+  semantically similar it was to the right answer, the worse the effect. A long agent history is
+  *full* of near-miss distractors: the file you read and rejected, the approach you tried and
+  abandoned.
+- **Coherent context performed worse than shuffled context.** Across all 18 models, a logically
+  ordered haystack was harder than a randomised one. Nobody has a satisfying explanation, and it
+  undercuts the intuition that tidier context is automatically better.
+
+The design consequence: **compaction is not only a capacity mechanism, it is a quality mechanism.**
+Dropping forty superseded tool results can make the model better even when the full history would
+have fit. Anthropic's framing is that context is an
+[attention budget](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+with diminishing returns, and that the goal is the smallest set of high-signal tokens rather than the
+largest set that fits.
+
+`TokenBudget` below encodes only the capacity half of that. Nothing in this harness currently
+compacts because the context has gone stale rather than long — a gap worth naming rather than
+glossing.
+
 ## Why the naive fix fails
 
 The obvious approach is a sliding window: keep the last N messages. Now watch what happens on a long
@@ -119,6 +154,23 @@ injected at the edge rather than reached for in the middle.
 Summary messages are marked `synthetic=True`, so telemetry can distinguish what the agent was told
 from what actually happened.
 
+### The third strategy this harness does not have
+
+Both of the above operate on *messages*. The cheapest useful strategy operates on **tool results**
+specifically: once a tool has been called deep in the history, the agent rarely needs its raw output
+again — only the conclusion it drew from it. Clearing old tool results while leaving the reasoning
+intact is the lightest-touch compaction available, and it is now a first-class
+[platform feature](https://www.anthropic.com/news/context-management) rather than a trick.
+
+It is attractive here because tool results are precisely the material that dominates an agent's
+context and has the worst value-per-token. A `DropOldestToolResults` strategy would fit the existing
+`Compactor` interface without touching the loop. It is not implemented; it is the first thing to
+build if this module is extended.
+
+A related idea from the same direction is **context awareness** — telling the model how much of its
+budget remains, so it can decide to write notes or wrap up rather than being truncated mid-thought.
+That one changes the prompt, not the compactor.
+
 ## Counting tokens without a tokeniser
 
 ```python
@@ -152,3 +204,27 @@ second context.
 - Is output space reserved, or does the window fill until a response gets truncated?
 - Is there a record that compaction happened, or does it occur invisibly?
 - Can you write a test that fails when compaction is broken? If not, it is untested.
+
+## Open problems
+
+**Nobody can measure what a compaction cost.** `CompactionEvent` records tokens reclaimed, which is
+the easy half. The hard half — what capability was lost — has no metric. Anthropic's practical advice
+is to tune the summariser prompt for recall first and precision second, which is sound and is still
+prompt-tuning against traces rather than measurement.
+
+**Compaction fights prompt caching.** Editing the middle of a history invalidates the cached prefix
+from that point on, so a pass that reclaims tokens can force a full cache re-write on the very next
+call. With a 1.25× write against a 0.1× read, the arithmetic is not obviously in compaction's favour
+at the margin. See [Messages and providers](messages-and-providers.md); no harness known to us models
+this trade-off explicitly.
+
+**Longer windows do not dissolve the problem.** The Chroma result is that degradation is a gradient,
+not a cliff, and it appears at a fraction of the advertised window. Every model generation makes the
+capacity argument for compaction weaker and the quality argument stronger, which suggests strategies
+should eventually be driven by *what the context contains* rather than by how big it is. There is no
+accepted way to detect that.
+
+**Compaction quality has no benchmark.** There is no shared task suite that fails specifically when a
+compactor is bad. This project's answer is a conjunction — a long-horizon task passes only if it
+completes *and* `compaction_events >= 1` — which proves compaction fired, not that it kept the right
+things. That is a weaker claim than it looks and is worth stating plainly.

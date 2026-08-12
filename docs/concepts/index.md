@@ -54,6 +54,17 @@ threat model that all of the others feed into, which is a bad thing to leave imp
 Read part two after part one, or skip to [prompt injection](prompt-injection.md) if you only have
 time for one page — it is the one with consequences.
 
+## Where the research is
+
+Each part-one page ends with an **Open problems** section: what is still unsolved about that specific
+concept, what the current best practice is, and which of this harness's decisions are bets rather
+than settled answers. Those sections cite their sources inline, because unlike the rest of the page
+they are not describing code in this repository.
+
+They are the most likely part of these docs to go stale, and they are dated by their citations rather
+than by a banner. If you are reading this a year from now, treat them as a snapshot of what was open
+in 2026.
+
 ## The one idea underneath all of them
 
 An agent's output is not its text. **An agent's output is the change it made to the world.**
