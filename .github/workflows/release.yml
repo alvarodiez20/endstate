@@ -37,12 +37,26 @@ jobs:
       released: ${{ steps.release.outputs.released }}
       tag: ${{ steps.release.outputs.tag }}
     steps:
+      # The `main` ruleset requires a pull request and green checks, and that
+      # applies to Actions too — GITHUB_TOKEN cannot push the version commit.
+      # A deploy key is the one actor the ruleset lets bypass, so the release
+      # pushes over SSH. Fail here rather than three minutes later at `git push`.
+      - name: Check the release key is present
+        env:
+          KEY: ${{ secrets.RELEASE_SSH_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::RELEASE_SSH_KEY is unset. The main ruleset blocks direct pushes; the release needs a write-enabled deploy key to bypass it. See CONTRIBUTING.md."
+            exit 1
+          fi
+
       - uses: actions/checkout@v5
         with:
           # Full history: the bump is computed from every commit since the last
           # tag, and a shallow clone silently sees none of them.
           fetch-depth: 0
           ref: main
+          ssh-key: ${{ secrets.RELEASE_SSH_KEY }}
 
       # `ci` went green on one specific commit. Tagging whatever main points at
       # now would, when two merges land close together, put the tag on a commit

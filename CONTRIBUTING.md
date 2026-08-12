@@ -88,6 +88,22 @@ environment in repository settings — the publish job will then wait for approv
 To re-publish an existing tag (a failed upload, a transient PyPI outage), run the `release` workflow
 manually and give it the tag.
 
+Step 2 pushes a commit and a tag straight to `main`, which the ruleset blocks for everyone —
+Actions included, since `GITHUB_TOKEN` is not a bypass actor. The ruleset does let a **deploy key**
+bypass, so the release job authenticates with one, held in the `RELEASE_SSH_KEY` secret. To rotate
+it, generate a fresh keypair, add the public half as a write-enabled deploy key, and replace the
+secret with the private half:
+
+```bash
+ssh-keygen -t ed25519 -N "" -C "endstate release key" -f release-key
+gh repo deploy-key add release-key.pub --title "release automation" --allow-write
+gh secret set RELEASE_SSH_KEY < release-key
+rm release-key release-key.pub
+```
+
+Without that secret the release job stops on its first step with an explicit error rather than
+failing at `git push`.
+
 ## Before you push
 
 ```bash
