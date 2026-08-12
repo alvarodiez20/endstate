@@ -101,8 +101,8 @@ gh secret set RELEASE_SSH_KEY < release-key
 rm release-key release-key.pub
 ```
 
-Without that secret the release job stops on its first step with an explicit error rather than
-failing at `git push`.
+Without that secret the release job stops with an explicit error — but only on a run where a bump is
+actually due. Runs that release nothing never push, so they never need the key.
 
 ## Before you push
 
