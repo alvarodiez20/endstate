@@ -10,11 +10,17 @@ the argument.
 **A TUI beyond `rich`.** Summary tables and streaming output, no more.
 
 **RAG or vector stores.** Retrieval is a real problem and a different one. The agent reads files with
-`grep` and `read`, like a person would.
+`grep` and `read`, like a person would. See [Memory](../concepts/memory.md) for why that is a smaller
+concession than it sounds.
 
 **Multi-agent orchestration.** A single loop that works is worth more than five that hand work to each
 other, and the failure modes covered here — compaction, permissioning, recovery — are unsolved in the
-single-agent case.
+single-agent case. The full argument, including the cases where it *is* the right call, is on
+[Subagents and orchestration](../concepts/subagents.md).
+
+**An MCP client.** A fixed, small, auditable tool set is a control variable for the benchmark; if the
+catalogue changes between runs, the cost table stops being comparable to itself. See
+[MCP and tool discovery](../concepts/mcp-and-tool-discovery.md).
 
 **An IDE plugin.**
 

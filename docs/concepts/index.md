@@ -11,10 +11,14 @@ The useful version is the list of things that break.
 
 <div class="endstate-diagram-scroll">
   <iframe class="endstate-diagram" src="../assets/diagrams/concepts-map.html"
-          height="775" loading="lazy" title="Map of the eight concepts and how they connect"></iframe>
+          height="800" loading="lazy" title="Map of the eight in-loop concepts and how they connect"></iframe>
 </div>
 
-## The eight problems
+The map covers part one only — each of those eight attaches to a specific step of the loop, which is
+what the diagram shows. The five in part two do not attach at a single point, which is the reason
+they are a separate list rather than nine through thirteen on the same one.
+
+## Part one: the eight problems in the loop
 
 Each page below takes one problem, explains why the obvious solution fails, and shows the code that
 handles it in this harness. Read them in order the first time; they build on each other.
@@ -29,6 +33,26 @@ handles it in this harness. Read them in order the first time; they build on eac
 | 6 | [Durability and resume](durability.md) | The process dies at step 14 of 25. Side effects are already on disk. |
 | 7 | [Cost and telemetry](cost-and-telemetry.md) | "Is it expensive?" should have a number, not a shrug |
 | 8 | [Evaluation](evaluation.md) | How do you know any of the above works? |
+
+## Part two: five problems around the loop
+
+The eight above are the ones this harness solves, and each page points at the code. The five below
+are ones it deliberately does **not** solve — and that any agent you actually deploy will hit anyway.
+
+They are here for two reasons. Some of them explain assumptions the first eight quietly depend on:
+"six tools, hardcoded" is doing more work in this design than it looks like. And the last one is the
+threat model that all of the others feed into, which is a bad thing to leave implicit.
+
+| # | Page | The problem it describes | Status here |
+| --- | --- | --- | --- |
+| 9 | [Skills](skills.md) | Procedural knowledge does not fit in a system prompt and cannot go in a tool description | Not built |
+| 10 | [MCP and tool discovery](mcp-and-tool-discovery.md) | Tools arrive at runtime, from strangers, by the hundred | Not built |
+| 11 | [Memory](memory.md) | Compaction decides what to forget. Something has to decide what to keep. | Not built |
+| 12 | [Subagents and orchestration](subagents.md) | One context window is sometimes the wrong unit of work — and usually the right one | [Non-goal](../design/non-goals.md) |
+| 13 | [Prompt injection and the lethal trifecta](prompt-injection.md) | Every capability above is also an ingredient in the same attack | Partially mitigated |
+
+Read part two after part one, or skip to [prompt injection](prompt-injection.md) if you only have
+time for one page — it is the one with consequences.
 
 ## The one idea underneath all of them
 
@@ -50,3 +74,7 @@ what it persists, and how you check afterwards that it did the right thing.
     **planned** and points at the milestone in the
     [engineering plan](https://github.com/alvarodiez20/endstate/blob/main/PLAN.md). No page will
     tell you a thing works because it is going to work later.
+
+    The part two pages describe things this harness does **not** implement at all. Each opens with a
+    status box saying so, and cites its sources at the bottom, because there is no source file to
+    point at.

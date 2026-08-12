@@ -138,6 +138,14 @@ one-line change when exactness matters.
 The approximation is fine for its actual job. It decides *when* to compact, and it is guarded by
 `reserve_output_tokens`, which is far larger than the error.
 
+## Compaction is not the only lever
+
+Compaction keeps a run under a limit. It does not help a run that has already ended — the losses are
+gone, and the next run starts from nothing. The complementary technique is to write things *outside*
+the window on purpose rather than choosing what to delete from inside it. See [Memory](memory.md),
+and [Subagents](subagents.md) for the version where the thing kept outside the window is an entire
+second context.
+
 ## What to check in your own agent
 
 - Does anything survive compaction unconditionally, or can the task statement be evicted?

@@ -87,8 +87,8 @@ nothing in the transcript that reads as alarming.
 !!! warning "A deny-list is a speed bump, not a wall"
 
     `rm -rf /` is caught. `python -c "import shutil; shutil.rmtree('/')"` is not. Base64-encoded
-    payloads are not. A model determined to be clever will get past any regex, and so will a prompt
-    injection in a file the agent reads.
+    payloads are not. A model determined to be clever will get past any regex, and so will a
+    [prompt injection](prompt-injection.md) in a file the agent reads.
 
     The deny-list is layer 2. Layer 1 is the [disposable container](tools-and-sandbox.md), and it is
     the only one that is really a boundary. Treat the regexes as protection against plausible
@@ -145,3 +145,6 @@ Run that check against your own guardrails. It is uncomfortable and it is the on
 ## Writing your own
 
 See [Write a permission policy](../guides/permission-policy.md).
+
+For *why* the `SECRET_EXFIL` family exists and why cutting the outbound channel is the highest-value
+rule in the whole policy, see [Prompt injection and the lethal trifecta](prompt-injection.md).

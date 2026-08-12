@@ -121,6 +121,11 @@ nav:
       - Durability and resume: concepts/durability.md
       - Cost and telemetry: concepts/cost-and-telemetry.md
       - Evaluation: concepts/evaluation.md
+      - Skills: concepts/skills.md
+      - MCP and tool discovery: concepts/mcp-and-tool-discovery.md
+      - Memory: concepts/memory.md
+      - Subagents and orchestration: concepts/subagents.md
+      - Prompt injection: concepts/prompt-injection.md
   - Guides:
       - Write a custom tool: guides/custom-tool.md
       - Write a permission policy: guides/permission-policy.md
