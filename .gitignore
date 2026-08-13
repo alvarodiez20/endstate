@@ -17,3 +17,9 @@ infra/terraform/.terraform/
 infra/terraform/*.tfstate*
 .coverage*
 .DS_Store
+
+# Task fixtures are data, not this project's files. A fixture that needs a .env
+# must still be committed verbatim, or the task quietly changes shape on a fresh
+# clone and the suite fails only in CI. tests/test_suite.py asserts that every
+# fixture file is tracked, which is what catches the next one of these.
+!tasks/**/fixture/.env

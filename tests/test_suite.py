@@ -18,6 +18,7 @@ real run between two known answers.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -271,3 +272,34 @@ def test_the_same_task_fails_for_an_agent_that_does_nothing(tmp_path: Path) -> N
     result = runner.run_task(task)
     assert not result.passed
     assert "the test suite passes" in result.verdict.reason
+
+
+def test_every_task_file_is_tracked_by_git() -> None:
+    """A fixture the repository is not carrying is a task that only works here.
+
+    `.gitignore` swallowed a fixture's `.env` exactly once: the suite was green
+    on the machine that wrote it and red on a fresh clone, because the sandbox
+    the graders saw was missing a file. The pattern generalises to anything the
+    ignore file matches — `build/`, `dist/`, `*.sqlite3` — and a task fixture is
+    data that has to survive a clone verbatim.
+    """
+    repo = SUITE.parent
+    if not (repo / ".git").exists():  # pragma: no cover - installed copies have no repo
+        pytest.skip("not a git checkout")
+
+    tracked = set(
+        subprocess.run(
+            ["git", "ls-files", "tasks"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
+    )
+    on_disk = {
+        p.relative_to(repo).as_posix()
+        for p in SUITE.rglob("*")
+        if p.is_file() and "__pycache__" not in p.parts
+    }
+    untracked = sorted(on_disk - tracked)
+    assert not untracked, f"task files not committed, so a fresh clone lacks them: {untracked}"
