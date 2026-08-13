@@ -97,9 +97,20 @@ manually and give it the tag.
 
 Step 2 pushes a commit and a tag straight to `main`, which the ruleset blocks for everyone —
 Actions included, since `GITHUB_TOKEN` is not a bypass actor. The ruleset does let a **deploy key**
-bypass, so the release job authenticates with one, held in the `RELEASE_SSH_KEY` secret. To rotate
-it, generate a fresh keypair, add the public half as a write-enabled deploy key, and replace the
-secret with the private half:
+bypass, so the release job authenticates with one, held in the `RELEASE_SSH_KEY` secret.
+
+Checking out with that key is necessary but not sufficient. semantic-release builds its own push URL
+from `GITHUB_TOKEN` and pushes to that, ignoring the SSH remote the checkout configured — so the
+push arrives as the token, not as the deploy key, and the ruleset rejects it with `GH013`. What
+prevents that is `ignore_token_for_push = true` under `[tool.semantic_release.remote]` in
+`pyproject.toml`. Do not remove it.
+
+That setting is worth understanding rather than trusting, because it fails invisibly: runs that
+release nothing never push, so a broken configuration stays green through every `docs:` and `chore:`
+merge and only surfaces on the first `feat:` — after the merge, when the version is already owed.
+
+To rotate the key, generate a fresh keypair, add the public half as a write-enabled deploy key, and
+replace the secret with the private half:
 
 ```bash
 ssh-keygen -t ed25519 -N "" -C "endstate release key" -f release-key

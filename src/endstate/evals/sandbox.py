@@ -432,10 +432,28 @@ class DockerSandbox(Sandbox):
         super().close()
 
 
+DOCKER_PROBE_TIMEOUT_S = 5.0
+"""How long to wait for `docker version`.
+
+A healthy daemon answers in well under a second. The cases that take longer are
+all "not usable right now" — no daemon, a socket nobody is listening on, a
+daemon still starting or wedged mid-restart — and for every one of them the
+answer is the same, so waiting longer buys nothing and costs it on every call.
+"""
+
+
 def docker_available(runner: CommandRunner | None = None) -> bool:
-    """Whether a usable Docker daemon is reachable."""
+    """Whether a usable Docker daemon is reachable.
+
+    Not cached: a daemon can start or stop between calls, and a stale False here
+    would send an eval run to the local sandbox by mistake. Callers that ask
+    repeatedly — a `skipif` evaluated once per decorator, say — should hold the
+    answer themselves rather than making this lie to everyone else.
+    """
     run = runner or subprocess_runner
     try:
-        return run(["docker", "version", "--format", "{{.Server.Version}}"], 20.0).ok
+        return run(
+            ["docker", "version", "--format", "{{.Server.Version}}"], DOCKER_PROBE_TIMEOUT_S
+        ).ok
     except SandboxError:
         return False

@@ -78,6 +78,19 @@ build_command = ""
 major_on_zero = false
 allow_zero_version = true
 
+[tool.semantic_release.remote]
+# Push the version commit and tag over the remote `actions/checkout` configured
+# — SSH, authenticated as the release deploy key — instead of an HTTPS URL built
+# from GITHUB_TOKEN.
+#
+# This is load-bearing, and it fails in a way that only shows up on a release
+# that is actually due. The `main` ruleset requires a pull request and green
+# checks, and its single bypass actor is the deploy key. GITHUB_TOKEN is not a
+# bypass actor, so a token-authenticated push is rejected with GH013 no matter
+# how the job checked out. Left at the default, every `docs:` and `chore:` run
+# passes happily — because they push nothing — and the first real `feat:` dies.
+ignore_token_for_push = true
+
 [tool.semantic_release.branches.main]
 match = "main"
 prerelease = false
