@@ -30,6 +30,38 @@ compactions, denied calls, and cost if a price table was supplied.
 cannot know whether the job was done — see [The loop](../concepts/the-loop.md). Check the end state
 yourself.
 
+## `endstate eval`
+
+Run a suite of tasks and grade the end state of each sandbox.
+
+```bash
+endstate eval --suite tasks/ [OPTIONS]
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--suite`, `-s` | `tasks` | Directory of task folders. Every `task.json` beneath it is a task. |
+| `--model`, `-m` | `gpt-4o-mini` | Model id. Names starting with `claude` route to Anthropic. |
+| `--base-url` | — | OpenAI-compatible endpoint |
+| `--sandbox` | `docker` | `docker` or `local`. See the warning below. |
+| `--image` | `python:3.12-slim` | Container image, for the Docker sandbox |
+| `--network` / `--no-network` | `--no-network` | Whether tasks can reach the network |
+| `--jobs`, `-j` | `1` | Tasks to run concurrently |
+| `--task`, `-t` | all | Run only these task ids. Repeatable. |
+| `--category`, `-c` | all | Run only these categories. Repeatable. |
+| `--prices` | — | JSON price table. Without one, cost is reported as unknown rather than zero. |
+| `--out` | — | Directory to write `results-<date>-<model>.md` and `.json` into |
+
+**Exit code is 0 whether or not tasks pass.** A failing task is a result, not a broken run. The
+exit code is 1 only when the *harness* failed — the container would not start, a fixture is
+unreadable — because a suite that never really executed must not look like a clean sweep.
+
+!!! warning "`--sandbox local` is not an isolation boundary"
+
+    It runs each task's commands as subprocesses on your machine, in a temporary copy of the
+    fixture. It exists so tasks can be written and debugged without Docker in the way. Anything
+    published from a local run should say that it was a local run.
+
 ## `endstate sessions`
 
 List stored session ids, newest first.
@@ -77,4 +109,22 @@ Continue an earlier session with a new instruction and costs reported:
 
 ```bash
 endstate run "now add a test for the edge case" --resume a3f9c211d4e0 -w /tmp/demo --prices ./prices.json
+```
+
+Run the whole eval suite, four tasks at a time, and commit the report:
+
+```bash
+endstate eval --suite tasks/ --model gpt-4o-mini --jobs 4 --prices ./prices.json --out benchmarks/
+```
+
+Run one category against a self-hosted model:
+
+```bash
+endstate eval --suite tasks/ --category refactor --base-url http://localhost:8000/v1 --model Qwen/Qwen2.5-Coder-7B-Instruct
+```
+
+Debug a single task without Docker:
+
+```bash
+endstate eval --suite tasks/ --task fix-slugify --sandbox local
 ```

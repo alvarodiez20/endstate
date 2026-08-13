@@ -97,48 +97,69 @@ It is only observable in the recorded history — or with a non-idempotent tool.
 **Deferred** (cut order items 5 and adjacent, neither blocking): streaming CLI output, demo GIF.
 
 **Known limit:** a crash *inside* a tool call, after the side effect and before any record of it, is
-irreducible without transactional side effects. Resume re-runs the call, which converges iff the tool
-is idempotent. Tracked as the argument for a `Tool.idempotent` flag before M2 graders rely on it.
+irreducible without transactional side effects. Resolved in part by `Tool.idempotent` in M2 — see
+below — which stops resume replaying a call it cannot prove did not happen. Full correctness needs
+idempotency keys, which this harness does not have.
 
 ---
 
-### M2 — Eval runner and the first 10 tasks · Week 3 · 6 h
+### M2 — Eval runner and the first 12 tasks ✅ *complete*
 
 | | |
 |---|---|
-| **Deliverable** | Docker sandbox, task spec, runner, graders, markdown report; 10 tasks (fix / feature / refactor) |
+| **Deliverable** | Docker sandbox, task spec, runner, graders, markdown report; 12 tasks (fix / feature / refactor) |
 | **DoD** | `endstate eval --suite tasks/` produces a report; suite is deterministic |
 | **Acceptance** | Same suite run twice on the same model+seed yields identical pass/fail vector |
-| **Metrics** | Flake rate < 5 % over 3 consecutive runs · median task wall-clock recorded |
-
-**Interfaces to build**
-
-```python
-class Verdict(BaseModel):
-    passed: bool
-    reason: str
-    checks: list[Check]          # every assertion, individually reported
-
-class Task(BaseModel):
-    id: str
-    fixture: Path                # repo copied into the sandbox
-    prompt: str
-    grader: str                  # dotted path to a callable
-    max_steps: int = 25
-    budget: TokenBudget
-    timeout_s: float = 300
-```
+| **Metrics achieved** | 256 tests · 98 % coverage · mypy strict clean · every task's graders proved load-bearing |
 
 **Grader contract:** pure function of the sandbox's end state. No access to the transcript. This is
-enforced by the signature — `grade(sandbox: Sandbox) -> Verdict` receives no messages.
+enforced by the signature — `grade(sandbox: Sandbox) -> Verdict` receives no messages — and the
+enforcement is real: `resolve()` inspects the signature and refuses a grader whose first parameter
+is not a positional `sandbox`, or that takes `messages`, `transcript`, `result` or `history`.
 
-**Tasks**
+**Shipped in M2**
 
-- [ ] `evals/sandbox.py` — one disposable container per task, fixture mounted, network off by default
-- [ ] `evals/task.py`, `evals/runner.py`, `evals/graders.py`, `evals/report.py`
-- [ ] 5 bug-fix, 4 multi-file feature, 3 refactor tasks with fixture repos
-- [ ] Determinism test: identical inputs → identical verdict vector
-- [ ] **Ship v0.1.0, repo public, first LinkedIn post**
+- `agent/tools/base.py` — `Tool.idempotent`, and `AgentLoop._settle` reading it. An outstanding call
+  to a non-idempotent tool is answered "outcome unknown", not replayed. `BashTool.idempotent = False`
+- `evals/sandbox.py` — `DockerSandbox` (one container per task, held open with `docker exec`,
+  `--network none`, `--cap-drop ALL`, capped memory and pids) and `LocalSandbox` for development.
+  `.git`/`.hg`/`.svn` pruned from every fixture; `seal()` freezes the end state before grading stages
+  anything in
+- `evals/task.py` — a task is a directory: `task.json`, `prompt.md`, `fixture/`, `holdout/`,
+  `solution/`. `graders` is a list and the list is a conjunction
+- `evals/graders.py` — `command_succeeds`, `files_unchanged`, `no_new_skips`, `changed_paths_within`,
+  `paths_exist`/`paths_absent`, `file_matches`, `file_contains`, `pattern_count`
+- `evals/runner.py` — per-task sandbox, provider and accountant; deadline that ends the run instead of
+  raising, so a timed-out task is still graded; `--jobs` without losing task order
+- `evals/report.py` — markdown plus JSON; unpriced models render `—`, never `0.00`
+- `endstate eval --suite tasks/` with `--sandbox`, `--task`, `--category`, `--jobs`, `--out`
+- 5 bug-fix, 4 multi-file feature, 3 refactor tasks, each with held-out tests and a reference solution
+
+**Verified against a real daemon** (Docker Desktop 29.7.2, `python:3.12-slim`): all 12 tasks run
+in containers, network egress blocked (`socket.create_connection` to 1.1.1.1 fails), bind mount live
+in both directions, no container outlives its task. Two integration tests assert this and skip when
+no daemon is reachable, so CI — which has one — runs them. Suite wall clock: **1.7 s at `--jobs 4`**,
+and the pass/fail vector was identical across two consecutive runs.
+
+**Task-level mutation check** (`tests/test_suite.py`, 12 tasks × both directions):
+
+| Assertion | Result |
+|---|---|
+| Graders **fail** on the untouched fixture | 12 of 12 |
+| Graders **pass** on the reference solution | 12 of 12 |
+
+This is the M2 analogue of M3's guard sabotage and it earned its keep while the suite was being
+written: several graders passed on the unsolved fixture on the first attempt, and two rejected their
+own reference solution. Neither is visible by reading the task definition.
+
+**Deviations from the plan as written**
+
+- `Task.grader: str` became `Task.graders: list[GraderSpec]`. Every interesting task is a
+  conjunction — *did the work* **and** *did not cheat* — and a list makes that the only available
+  shape instead of something each task author has to remember.
+- 12 tasks, not 10. The 5 + 4 + 3 breakdown below always summed to 12; the heading was wrong.
+
+**Deferred:** repo public, v0.1.0 tag, first post — the shipping steps, not the engineering.
 
 ---
 
@@ -207,10 +228,13 @@ Enforced in CI on every push. A red gate blocks merge; none are advisory.
 | Types | 0 errors, strict | `mypy` |
 | Unit tests | 100 % pass | `pytest` |
 | Coverage | ≥ 85 % | `pytest-cov` (network adapters and CLI excluded — see `pyproject.toml`) |
-| Python support | 3.11, 3.12, 3.13 | CI matrix |
+| Python support | 3.10, 3.11, 3.12, 3.13, 3.14 | CI matrix |
 | Supply chain | no tokens in repo | PyPI Trusted Publishing (OIDC) |
 
-**Current status:** all green. 59 tests, 96 % coverage, mypy strict clean.
+**Current status:** all green. 256 tests, 98 % coverage, mypy strict clean.
+
+`tasks/` is excluded from ruff. The fixtures contain deliberate bugs — a mutable default argument, an
+off-by-one — that are the thing being graded, and a linter that fixes them deletes the task.
 
 ---
 
@@ -221,7 +245,7 @@ Four layers, each answering a different question.
 | Layer | Question | Where | Network |
 |---|---|---|---|
 | Unit | Does this function do what it claims? | `tests/test_*.py` | none |
-| Contract | Does every provider adapter satisfy the Protocol? | `tests/test_provider_contract.py` (M2) | recorded fixtures |
+| Contract | Does every provider adapter satisfy the Protocol? | `tests/test_provider_contract.py` (M4) | recorded fixtures |
 | Integration | Does the loop behave end to end? | `FakeProvider` + real filesystem | none |
 | Eval | Does the *agent* accomplish the task? | `tasks/` in Docker | real models |
 

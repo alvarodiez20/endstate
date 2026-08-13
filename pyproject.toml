@@ -90,7 +90,11 @@ line-length = 100
 target-version = "py310"
 # Markdown is prose, not source. ruff >= 0.16 reformats Python fenced in .md,
 # which turns illustrative snippets in PLAN.md into a failing format gate.
-extend-exclude = ["*.md"]
+#
+# `tasks/` is task material, not this project's code. The fixtures contain
+# deliberate bugs — a mutable default argument, an off-by-one — that are the
+# thing being graded, and a linter that fixes them deletes the task.
+extend-exclude = ["*.md", "tasks/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

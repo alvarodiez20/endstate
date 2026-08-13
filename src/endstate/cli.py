@@ -7,6 +7,11 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+
+# Grader reasons and error text are data, not markup. A check named `/[a-z]+/`
+# or a hint to `pip install 'endstate[openai]'` renders with the brackets eaten
+# unless it is escaped on the way in.
+from rich.markup import escape
 from rich.table import Table
 
 from endstate import __version__
@@ -16,6 +21,17 @@ from endstate.agent.permissions import default_policy
 from endstate.agent.session import SessionStore
 from endstate.agent.tools import default_tools
 from endstate.agent.tools.base import ToolContext
+from endstate.evals import (
+    DEFAULT_IMAGE,
+    DockerSandbox,
+    EvalRunner,
+    LocalSandbox,
+    Sandbox,
+    Task,
+    discover_tasks,
+    docker_available,
+    write_report,
+)
 from endstate.telemetry.cost import CostAccountant, PriceTable
 
 app = typer.Typer(add_completion=False, help="Agent evals that grade the end state.")
@@ -90,6 +106,87 @@ def run(
     elif accountant.unpriced_models():
         table.add_row("cost (USD)", "unknown (no price for model; pass --prices)")
     console.print(table)
+
+
+@app.command()
+# Shadows the builtin inside this module, which is not used here. The command is
+# `endstate eval`, and renaming the function would rename the command.
+def eval(
+    suite: Path = typer.Option(Path("tasks"), "--suite", "-s", help="Directory of task folders."),
+    model: str = typer.Option("gpt-4o-mini", "--model", "-m"),
+    base_url: str | None = typer.Option(None, "--base-url", help="OpenAI-compatible endpoint."),
+    sandbox: str = typer.Option("docker", "--sandbox", help="docker | local."),
+    image: str = typer.Option(DEFAULT_IMAGE, "--image", help="Container image for the sandbox."),
+    network: bool = typer.Option(False, "--network/--no-network", help="Let tasks reach the net."),
+    jobs: int = typer.Option(1, "--jobs", "-j", help="Tasks to run concurrently."),
+    only: list[str] = typer.Option([], "--task", "-t", help="Run only these task ids."),
+    category: list[str] = typer.Option([], "--category", "-c", help="Run only these categories."),
+    prices: Path | None = typer.Option(None, "--prices", help="JSON price table."),
+    out: Path | None = typer.Option(None, "--out", help="Directory to write the report into."),
+) -> None:
+    """Run an eval suite and report on the end state of each sandbox."""
+    tasks = discover_tasks(suite)
+    if only:
+        tasks = [t for t in tasks if t.id in set(only)]
+    if category:
+        tasks = [t for t in tasks if t.category in set(category)]
+    if not tasks:
+        raise typer.BadParameter(f"no tasks matched in {suite}")
+
+    if sandbox == "docker" and not docker_available():
+        raise typer.BadParameter(
+            "docker is not reachable. Start it, or pass --sandbox local — which runs task "
+            "commands on this machine with no isolation and is for development only."
+        )
+
+    price_table = PriceTable.from_file(prices) if prices else PriceTable()
+
+    def make_sandbox(task: Task) -> Sandbox:
+        if sandbox == "local":
+            return LocalSandbox(task.fixture)
+        return DockerSandbox(task.fixture, image=image, network=network)
+
+    runner = EvalRunner(
+        provider_factory=lambda task: _provider(model, base_url),
+        sandbox_factory=make_sandbox,
+        prices=price_table,
+        jobs=jobs,
+        provider_name="anthropic" if model.startswith("claude") else base_url or "openai",
+        sandbox_name=f"{sandbox}:{image}" if sandbox == "docker" else "local",
+        on_result=lambda r: console.print(
+            f"[{'green' if r.passed else 'red'}]{'pass' if r.passed else 'fail'}[/] "
+            f"{escape(r.task_id)} ({r.steps} steps, {r.wall_clock_s:.1f}s)"
+        ),
+    )
+    result = runner.run_suite(tasks)
+
+    table = Table(title=f"{escape(result.model or model)} · {len(result.results)} tasks")
+    table.add_column("task")
+    table.add_column("verdict")
+    table.add_column("steps", justify="right")
+    table.add_column("tokens", justify="right")
+    for task_result in result.results:
+        table.add_row(
+            escape(task_result.task_id),
+            "pass" if task_result.passed else f"fail — {escape(task_result.verdict.reason)}",
+            str(task_result.steps),
+            f"{task_result.usage.total_tokens:,}",
+        )
+    console.print(table)
+    console.print(f"pass rate: {result.pass_rate:.0%}")
+
+    if out is not None:
+        markdown_path, json_path = write_report(result, out, price_table)
+        console.print(f"wrote {markdown_path} and {json_path}")
+
+    # A failing task is data. A harness error is a broken run, and exiting 0 on
+    # one would let a suite that never really executed look like a clean sweep.
+    if result.errored:
+        for task_result in result.errored:
+            console.print(
+                f"[red]error[/] {escape(task_result.task_id)}: {escape(task_result.error)}"
+            )
+        raise typer.Exit(code=1)
 
 
 @app.command()
