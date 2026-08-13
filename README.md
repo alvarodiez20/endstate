@@ -22,6 +22,12 @@ through.
 pip install endstate
 ```
 
+<!-- Animated SVG rather than one of the docs diagrams: those are React in an
+     iframe, and neither GitHub nor PyPI will run one. A media query inside the
+     file handles light and dark, and it holds its finished frame for anyone who
+     has asked for reduced motion. -->
+<img src="https://raw.githubusercontent.com/alvarodiez20/endstate/main/brand/svg/endstate-thesis.svg" width="720" alt="An agent's transcript is struck out and discarded; its sandbox is graded instead — tests green, tests/ unchanged, rm -rf never ran, held-out tests also green.">
+
 > **Status: v0.1.0 on PyPI.** `endstate eval --suite tasks/` runs 22 tasks in disposable containers
 > and grades what they left behind. The published benchmark across hosted and self-hosted models is
 > next. Follow the [build plan](PLAN.md) for what ships when.
@@ -29,17 +35,24 @@ pip install endstate
 **[Documentation →](https://alvarodiez20.github.io/endstate/)** — including
 [How agents actually work](https://alvarodiez20.github.io/endstate/concepts/), a walk through the
 internals of agent design: the loop, the sandbox boundary, permissioning, context compaction,
-checkpoint durability, and why end-state grading beats grading text.
+checkpoint durability, and why end-state grading beats grading text. Eighteen animated diagrams, one
+per page — [the thesis](https://alvarodiez20.github.io/endstate/concepts/evaluation/),
+[the loop](https://alvarodiez20.github.io/endstate/concepts/the-loop/),
+[what a kill costs you](https://alvarodiez20.github.io/endstate/concepts/durability/).
 
 ---
 
 ## Results
 
-<!-- BENCHMARK TABLE — replaces this block in v0.2.0 -->
+<!-- BENCHMARK TABLE — replaces this block once M4 lands -->
 
-_Not yet published. The v0.2.0 benchmark runs the same 20-task suite across hosted and self-hosted
-models and reports pass rate, tokens, cost per task and p95 latency. Method and raw traces will be
-committed under [`benchmarks/`](benchmarks/)._
+_Not yet published. The benchmark runs the same 22-task suite across hosted and self-hosted models
+and reports pass rate, median steps, tokens, cost per task, p95 latency and compaction events per
+task. Method and raw traces will be committed under [`benchmarks/`](benchmarks/)._
+
+_One result is worth stating in advance, because it is a finding rather than a failure: if a
+self-hosted 14B model passes 6 of 22 tasks at a fortieth of the cost, that is a more interesting
+number than parity._
 
 ---
 

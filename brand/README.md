@@ -21,6 +21,27 @@ Grid: 32×32, stroke 2.5, single flat color. No gradients, no rasters inside the
     png/endstate-lockup-accent.png   256px-tall lockup, node in #0f766e
     png/endstate-lockup-transparent.png  256px-tall lockup, black on transparent
     png/og-image-1280x640.png        social preview
+    svg/endstate-thesis.svg          animated: the transcript discarded, the sandbox graded
+
+## endstate-thesis.svg
+
+The one animated asset, used at the top of the README. It is an animated SVG rather than one of the
+`docs/assets/diagrams/` files because those are React in an iframe, and neither GitHub nor PyPI will
+run one — both will render an `<img>` pointing at an SVG, and both animate it.
+
+Two things in it are deliberate and easy to break:
+
+- A `@media (prefers-color-scheme: dark)` block inside the file supplies the dark palette. Browsers
+  evaluate that even when the SVG is loaded as an `<img>`, so one file covers both themes with no
+  `<picture>` element. The accent is lightened there rather than kept at `#0f766e`, which falls to
+  about 2:1 against `#0d0d0d`.
+- A `prefers-reduced-motion` block holds the finished frame instead of looping.
+
+The known limit: inside an `<img>`, `prefers-color-scheme` resolves against the reader's **OS**
+setting, not GitHub's own theme toggle. Someone browsing in GitHub dark mode on a light OS gets the
+light artwork on a dark page. That is why the file paints an opaque `--surface` rectangle rather
+than being transparent — a light card on a dark page is merely untidy, whereas transparent artwork
+in that combination would be dark ink on a dark background and unreadable.
 
 ## Colors
 
