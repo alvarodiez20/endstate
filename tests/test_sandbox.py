@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from endstate.evals.sandbox import (
+    DOCKER_PROBE_TIMEOUT_S,
     DockerSandbox,
     ExecResult,
     LocalSandbox,
@@ -227,6 +228,24 @@ def test_docker_available_reflects_the_runner() -> None:
     assert docker_available(FakeRunner(ok=False)) is False
 
 
+def test_the_availability_probe_does_not_block() -> None:
+    """It gates the CLI, so an unreachable daemon must fail fast, not hang.
+
+    Five seconds is already generous for a command a healthy daemon answers in
+    milliseconds, and every case that takes longer is one where the answer is
+    False anyway.
+    """
+    seen: list[float | None] = []
+
+    def record(argv: Sequence[str], timeout_s: float | None) -> ExecResult:
+        seen.append(timeout_s)
+        return ExecResult(command=" ".join(argv), exit_code=0, stdout="29.7.2")
+
+    docker_available(record)
+    assert seen == [DOCKER_PROBE_TIMEOUT_S]
+    assert DOCKER_PROBE_TIMEOUT_S <= 5.0
+
+
 def test_docker_available_is_false_without_the_binary() -> None:
     def missing(argv: Sequence[str], timeout_s: float | None) -> ExecResult:
         raise SandboxError("docker is not installed")
@@ -246,11 +265,18 @@ def test_subprocess_runner_times_out() -> None:
 # --- against a real daemon ------------------------------------------------
 #
 # Everything above asserts on the argv, which is where "network off by default"
-# is decided but not where it is proved. This one needs Docker, so it skips on a
-# machine without it and runs in CI, which has one.
+# is decided but not where it is proved. These need Docker, so they skip on a
+# machine without it and run in CI, which has one.
+#
+# The probe is held in a module-level constant rather than called inside each
+# decorator: `skipif` conditions are evaluated at import, so one call per
+# decorator means paying the probe timeout once per test on any machine where
+# the daemon is missing or wedged.
+DOCKER = docker_available()
+needs_docker = pytest.mark.skipif(not DOCKER, reason="no Docker daemon")
 
 
-@pytest.mark.skipif(not docker_available(), reason="no Docker daemon")
+@needs_docker
 def test_docker_really_isolates_and_really_mounts(fixture_repo: Path) -> None:
     with DockerSandbox(fixture_repo) as sandbox:
         assert sandbox.run("cat pkg/mod.py").stdout.strip() == "VALUE = 1"
@@ -272,7 +298,7 @@ def test_docker_really_isolates_and_really_mounts(fixture_repo: Path) -> None:
         assert sandbox.changed_paths() == ["made_in_container.txt", "pkg/mod.py"]
 
 
-@pytest.mark.skipif(not docker_available(), reason="no Docker daemon")
+@needs_docker
 def test_the_container_is_gone_afterwards(fixture_repo: Path) -> None:
     with DockerSandbox(fixture_repo) as sandbox:
         container_id = sandbox.container_id
