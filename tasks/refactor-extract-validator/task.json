@@ -1,0 +1,69 @@
+{
+  "id": "refactor-extract-validator",
+  "category": "refactor",
+  "description": "The same validation block is copy-pasted into three modules.",
+  "max_steps": 25,
+  "timeout_s": 600.0,
+  "budget": {
+    "max_context_tokens": 60000,
+    "reserve_output_tokens": 4000
+  },
+  "graders": [
+    {
+      "name": "endstate.evals.graders:command_succeeds",
+      "args": {
+        "command": "python -m unittest discover -s tests -t . -q",
+        "name": "the test suite passes",
+        "timeout_s": 120
+      }
+    },
+    {
+      "name": "endstate.evals.graders:paths_exist",
+      "args": {
+        "paths": [
+          "formkit/validation.py"
+        ]
+      }
+    },
+    {
+      "name": "endstate.evals.graders:files_unchanged",
+      "args": {
+        "paths": [
+          "tests/test_forms.py"
+        ]
+      }
+    },
+    {
+      "name": "endstate.evals.graders:pattern_count",
+      "args": {
+        "pattern": "EMAIL_PATTERN\\s*=\\s*re\\.compile",
+        "glob": "formkit/*.py",
+        "maximum": 1,
+        "minimum": 1,
+        "name": "the email regex is defined exactly once"
+      }
+    },
+    {
+      "name": "endstate.evals.graders:pattern_count",
+      "args": {
+        "pattern": "password is too short",
+        "glob": "formkit/*.py",
+        "maximum": 1,
+        "name": "the password messages are not duplicated"
+      }
+    },
+    {
+      "name": "endstate.evals.graders:no_new_skips",
+      "args": {}
+    },
+    {
+      "name": "endstate.evals.graders:changed_paths_within",
+      "args": {
+        "allowed": [
+          "formkit/*",
+          "*.md"
+        ]
+      }
+    }
+  ]
+}

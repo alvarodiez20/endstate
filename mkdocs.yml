@@ -128,6 +128,7 @@ nav:
       - Subagents and orchestration: concepts/subagents.md
       - Prompt injection: concepts/prompt-injection.md
   - Guides:
+      - Write an eval task: guides/writing-a-task.md
       - Write a custom tool: guides/custom-tool.md
       - Write a permission policy: guides/permission-policy.md
       - Use a self-hosted model: guides/self-hosted-models.md

@@ -18,6 +18,7 @@ from typing import Any
 import pytest
 
 from endstate.agent.loop import AgentLoop
+from endstate.agent.permissions import Decision, PermissionPolicy, Rule
 from endstate.agent.session import Session, SessionStore
 from endstate.agent.tools import default_tools
 from endstate.agent.tools.base import Tool, ToolContext
@@ -331,3 +332,116 @@ def test_checkpoints_survive_sigkill(tmp_path: Path) -> None:
     assert len(sessions) == 1
     restored = SessionStore(db).resume(sessions[0])
     assert [m.content for m in restored.messages] == ["do the thing", "working"]
+
+
+# --- non-idempotent tools -------------------------------------------------
+#
+# Everything above uses `write`, which converges when re-run. A shell command is
+# the general case: `git commit`, `>> log`, `pip install`. For those, "the call
+# was requested and no result was recorded" means the outcome is *unknown*, and
+# replaying is a second side effect rather than a retry.
+
+
+class Appender(Tool):
+    """A deliberately non-idempotent tool: running it twice is visible."""
+
+    name = "append"
+    description = "Append a line to a file."
+    idempotent = False
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {"path": {"type": "string"}, "line": {"type": "string"}},
+            "required": ["path", "line"],
+        }
+
+    def run(self, arguments: dict[str, Any], ctx: ToolContext) -> str:
+        target = ctx.resolve(arguments["path"])
+        with target.open("a", encoding="utf-8") as handle:
+            handle.write(arguments["line"] + "\n")
+        return "appended"
+
+
+def append_script() -> list[Response]:
+    return [
+        Response(
+            message=Message(
+                role="assistant",
+                tool_calls=[
+                    ToolCall(id="a0", name="append", arguments={"path": "log.txt", "line": "one"})
+                ],
+            ),
+            usage=Usage(input_tokens=10, output_tokens=5),
+            stop_reason=StopReason.TOOL_USE,
+            model="fake-1",
+        ),
+        Response(
+            message=Message(role="assistant", content="done"),
+            usage=Usage(input_tokens=10, output_tokens=5),
+            stop_reason=StopReason.END_TURN,
+            model="fake-1",
+        ),
+    ]
+
+
+def append_loop(
+    session: Session, workdir: Path, tools: list[Tool], responses: list[Response]
+) -> AgentLoop:
+    """`append` is not in the default policy, which denies anything unlisted."""
+    return AgentLoop(
+        provider=FakeProvider(responses),
+        tools=tools,
+        tool_context=ToolContext(workdir=workdir),
+        policy=PermissionPolicy(rules=[Rule(tool="append", decision=Decision.ALLOW)]),
+        session=session,
+    )
+
+
+def test_bash_declares_itself_non_idempotent() -> None:
+    tools = {t.name: t for t in default_tools()}
+    assert tools["bash"].idempotent is False
+    assert tools["write"].idempotent is True
+    assert tools["read"].idempotent is True
+
+
+def test_resume_does_not_replay_a_non_idempotent_call(store: SessionStore, sandbox: Path) -> None:
+    """The side effect landed; re-running it would double it."""
+    session = store.create()
+    tools = [CrashAt(Appender(), 0, after=True)]
+    with pytest.raises(Crash):
+        append_loop(session, sandbox, tools, append_script()).run("append a line")
+
+    assert (sandbox / "log.txt").read_text(encoding="utf-8") == "one\n"
+
+    resumed = store.resume(session.id)
+    result = append_loop(resumed, sandbox, [Appender()], append_script()[1:]).resume()
+
+    assert (sandbox / "log.txt").read_text(encoding="utf-8") == "one\n", "the call was replayed"
+    assert [u.tool for u in result.unsettled_calls] == ["append"]
+
+
+def test_the_unsettled_call_is_still_answered(store: SessionStore, sandbox: Path) -> None:
+    """An assistant turn with an unanswered tool call is malformed everywhere."""
+    session = store.create()
+    with pytest.raises(Crash):
+        append_loop(session, sandbox, [CrashAt(Appender(), 0)], append_script()).run("append")
+
+    resumed = store.resume(session.id)
+    result = append_loop(resumed, sandbox, [Appender()], append_script()[1:]).resume()
+
+    requested = {c.id for m in result.messages for c in m.tool_calls}
+    answered = {r.call_id for m in result.messages for r in m.tool_results}
+    assert requested == answered
+
+    reported = next(r for m in result.messages for r in m.tool_results if r.call_id == "a0")
+    assert reported.is_error
+    assert "not idempotent" in reported.content
+
+
+def test_a_fresh_non_idempotent_call_runs_normally(store: SessionStore, sandbox: Path) -> None:
+    """Only reconciliation is affected; an ordinary step is untouched."""
+    result = append_loop(store.create(), sandbox, [Appender()], append_script()).run("append")
+    assert (sandbox / "log.txt").read_text(encoding="utf-8") == "one\n"
+    assert result.unsettled_calls == []

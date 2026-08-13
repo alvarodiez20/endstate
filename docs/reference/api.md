@@ -31,6 +31,26 @@ result = loop.run("fix the failing test")
 print(result.stop_reason, result.steps, result.usage.total_tokens)
 ```
 
+## Running an eval suite
+
+```python
+from pathlib import Path
+
+from endstate.evals import DockerSandbox, EvalRunner, discover_tasks, render_markdown
+from endstate.providers.openai_compat import OpenAICompatProvider
+
+tasks = discover_tasks(Path("tasks"))
+runner = EvalRunner(
+    provider_factory=lambda task: OpenAICompatProvider(model="gpt-4o-mini"),
+    sandbox_factory=lambda task: DockerSandbox(task.fixture),
+)
+suite = runner.run_suite(tasks)
+print(render_markdown(suite))
+```
+
+Both factories take the task, so a suite can vary the model or the image per task. Nothing in
+`SuiteResult` reaches a grader: the verdict is decided before the result is assembled.
+
 ---
 
 ## Core types
@@ -74,6 +94,36 @@ print(result.stop_reason, result.steps, result.usage.total_tokens)
 ::: endstate.providers.base
 
 ::: endstate.providers.fake
+
+---
+
+## Evals: tasks and verdicts
+
+::: endstate.evals.task
+
+---
+
+## Evals: the sandbox
+
+::: endstate.evals.sandbox
+
+---
+
+## Evals: graders
+
+::: endstate.evals.graders
+
+---
+
+## Evals: the runner
+
+::: endstate.evals.runner
+
+---
+
+## Evals: the report
+
+::: endstate.evals.report
 
 ---
 

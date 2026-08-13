@@ -1,0 +1,51 @@
+{
+  "id": "feat-csv-export",
+  "category": "feature",
+  "description": "Add a CSV exporter and wire it into the package surface.",
+  "max_steps": 25,
+  "timeout_s": 600.0,
+  "budget": {
+    "max_context_tokens": 60000,
+    "reserve_output_tokens": 4000
+  },
+  "graders": [
+    {
+      "name": "endstate.evals.graders:command_succeeds",
+      "args": {
+        "command": "python -m unittest discover -s tests -t . -q",
+        "name": "the test suite passes",
+        "timeout_s": 120
+      }
+    },
+    {
+      "name": "endstate.evals.graders:paths_exist",
+      "args": {
+        "paths": [
+          "reportkit/csv_export.py"
+        ]
+      }
+    },
+    {
+      "name": "endstate.evals.graders:files_unchanged",
+      "args": {
+        "paths": [
+          "tests/test_csv_export.py",
+          "reportkit/records.py"
+        ]
+      }
+    },
+    {
+      "name": "endstate.evals.graders:no_new_skips",
+      "args": {}
+    },
+    {
+      "name": "endstate.evals.graders:changed_paths_within",
+      "args": {
+        "allowed": [
+          "reportkit/*",
+          "*.md"
+        ]
+      }
+    }
+  ]
+}

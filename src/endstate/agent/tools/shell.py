@@ -17,6 +17,10 @@ class BashTool(Tool):
     name = "bash"
     description = "Run a shell command in the working directory. Returns stdout and stderr."
 
+    # `git commit`, `>> log`, `pip install`: a shell command is the general case
+    # of a side effect, so resume must not replay one whose outcome it lost.
+    idempotent = False
+
     @property
     def parameters(self) -> dict[str, Any]:
         return {

@@ -28,6 +28,26 @@ class DeniedCall(BaseModel):
     reason: str
 
 
+class UnsettledCall(BaseModel):
+    """A call left outstanding by a crash that resume refused to replay.
+
+    Only produced for tools that declare themselves non-idempotent. The call is
+    answered — an unanswered one is malformed under every provider contract —
+    but with an error saying the outcome is unknown rather than with a second
+    side effect.
+    """
+
+    tool: str
+    call_id: str
+
+
+INTERRUPTED = (
+    "interrupted: this call was requested before the run died and no result was recorded, "
+    "so it may or may not have taken effect. The {tool} tool is not idempotent, so it was "
+    "not re-run. Check the current state before deciding whether to repeat it."
+)
+
+
 class RunResult(BaseModel):
     session_id: str | None = None
     workdir: Path | None = None
@@ -37,6 +57,7 @@ class RunResult(BaseModel):
     steps: int = 0
     compaction_events: list[CompactionEvent] = Field(default_factory=list)
     denied_calls: list[DeniedCall] = Field(default_factory=list)
+    unsettled_calls: list[UnsettledCall] = Field(default_factory=list)
     final_text: str = ""
 
     model_config = {"arbitrary_types_allowed": True}
@@ -79,6 +100,9 @@ class AgentLoop:
         self.max_steps = max_steps
         self.system_prompt = system_prompt
         self.trace = Trace()
+        # Not threaded through the call chain like `denied` because it is only
+        # ever produced by `_settle`, which every entry point calls exactly once.
+        self.unsettled: list[UnsettledCall] = []
 
     # --- persistence ------------------------------------------------------
 
@@ -99,6 +123,7 @@ class AgentLoop:
         """Run the agent against a new instruction."""
         messages: list[Message] = list(self.session.messages) if self.session else []
         denied: list[DeniedCall] = []
+        self.unsettled = []
 
         # Settle before the new prompt is appended, not after: an interrupted
         # batch has to be finished while it is still the tail of the history.
@@ -123,6 +148,7 @@ class AgentLoop:
             raise ValueError("resume requires a session")
         messages: list[Message] = list(self.session.messages)
         denied: list[DeniedCall] = []
+        self.unsettled = []
         self._settle(messages, denied)
         return self._drive(messages, denied)
 
@@ -158,11 +184,11 @@ class AgentLoop:
         """
         pending, partial = self._pending(messages)
         if pending:
-            self._run_calls(pending, messages, denied, into_existing=partial)
+            self._run_calls(pending, messages, denied, into_existing=partial, settling=True)
 
     # --- tool execution ---------------------------------------------------
 
-    def _execute(self, call: ToolCall, denied: list[DeniedCall]) -> ToolResult:
+    def _execute(self, call: ToolCall, denied: list[DeniedCall], *, settling: bool) -> ToolResult:
         decision, reason = self.policy.check(call.name, call.arguments)
         if decision is not Decision.ALLOW:
             denied.append(DeniedCall(tool=call.name, arguments=call.arguments, reason=reason))
@@ -178,6 +204,14 @@ class AgentLoop:
         if tool is None:
             return ToolResult(call_id=call.id, content=f"unknown tool: {call.name}", is_error=True)
 
+        if settling and not tool.idempotent:
+            self.unsettled.append(UnsettledCall(tool=call.name, call_id=call.id))
+            with self.trace.span("tool.unsettled", tool=call.name):
+                pass
+            return ToolResult(
+                call_id=call.id, content=INTERRUPTED.format(tool=call.name), is_error=True
+            )
+
         with self.trace.span("tool.run", tool=call.name):
             try:
                 output = tool.run(call.arguments, self.tool_context)
@@ -192,6 +226,7 @@ class AgentLoop:
         denied: list[DeniedCall],
         *,
         into_existing: bool = False,
+        settling: bool = False,
     ) -> None:
         """Run a batch, persisting after every individual result.
 
@@ -199,10 +234,13 @@ class AgentLoop:
         granularity. Writing the whole batch at the end would mean a crash after
         the second of three tools left no record that the first two had run,
         while their side effects were already on disk.
+
+        `settling` marks the reconciliation batch, where a call's outcome is
+        unknown rather than merely unstarted. See `Tool.idempotent`.
         """
         started = into_existing
         for call in calls:
-            result = self._execute(call, denied)
+            result = self._execute(call, denied, settling=settling)
             if started:
                 messages[-1].tool_results.append(result)
                 self._checkpoint_last(messages)
@@ -247,5 +285,6 @@ class AgentLoop:
             steps=steps,
             compaction_events=list(self.context.events),
             denied_calls=denied,
+            unsettled_calls=list(self.unsettled),
             final_text=final,
         )

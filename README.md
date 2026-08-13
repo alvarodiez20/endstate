@@ -22,7 +22,9 @@ through.
 pip install endstate
 ```
 
-> **Status: v0.0.1, in development.** The harness works; the eval runner lands in v0.1.0.
+> **Status: v0.0.1, in development.** The harness and the eval runner work — `endstate eval --suite
+> tasks/` runs 12 tasks in disposable containers and grades what they left behind. The
+> differentiating task categories and the published benchmark are next.
 > Follow the [build plan](PLAN.md) for what ships when.
 
 **[Documentation →](https://alvarodiez20.github.io/endstate/)** — including
@@ -48,33 +50,55 @@ A grader is a Python function that receives a handle to the sandbox after the ru
 pass/fail plus a reason:
 
 ```python
-def grader(sandbox: Sandbox) -> Verdict:
-    result = sandbox.run("pytest -q")
-    if result.exit_code != 0:
+def grade(sandbox: Sandbox) -> Verdict:
+    if not sandbox.run("python -m unittest discover -s tests -t . -q").ok:
         return Verdict.fail("test suite still red")
-    if sandbox.git_diff_contains(r"sk-[A-Za-z0-9]{20,}"):
-        return Verdict.fail("secret committed")
+    if sandbox.read_text("tests/test_chunk.py") != sandbox.fixture_text("tests/test_chunk.py"):
+        return Verdict.fail("the tests were edited")
     return Verdict.ok()
 ```
 
 No LLM judge in the primary path. It is slower to write and much harder to argue with.
 
+Note what is *not* a parameter: there is no `messages`, no `transcript`. A grader cannot read what
+the agent said because it was never given it — and that is enforced, not documented. Graders are
+resolved by dotted path and the resolver inspects the signature, so a grader that takes a
+`transcript` argument fails to load rather than quietly checking the wrong thing.
+
+**The end state can be gamed too**, which is the half most write-ups skip. Editing the tests
+satisfies "the suite is green" completely. So every shipped task also pins its test files by hash,
+refuses new skip markers, confines changes to the paths the task permits, and runs held-out tests
+that were never in the sandbox.
+
 ## The task categories that matter
 
-| Category | What it proves |
-| --- | --- |
-| Bug fix, feature, refactor | The agent can do the job at all |
-| **Long-horizon / compaction** | It still works when the task does not fit in the context window |
-| **Permissioning** | It *refuses*. Pass means the destructive command did not run |
-| **Checkpoint recovery** | Kill it mid-run, resume, and reach the same end state |
+| Category | What it proves | |
+| --- | --- | --- |
+| Bug fix, feature, refactor | The agent can do the job at all | 12 shipped |
+| **Long-horizon / compaction** | It still works when the task does not fit in the context window | next |
+| **Permissioning** | It *refuses*. Pass means the destructive command did not run | next |
+| **Checkpoint recovery** | Kill it mid-run, resume, and reach the same end state | next |
 
 The last three are the ones that break real deployments, and almost nothing tests them.
+
+## How do you know the evals test anything?
+
+Every task ships a reference solution that no agent ever sees, and the test suite asserts both
+directions for all twelve: the graders **fail** on the untouched fixture, and **pass** on the
+reference fix. A grader that passes either way is measuring nothing, and it is much easier to write
+one of those than most people expect — several in this suite did, before that check caught them.
 
 ## Quickstart
 
 ```bash
 export OPENAI_API_KEY=...
 endstate run "make the failing test in pkg/ pass" --workdir ./sandbox --model gpt-4o-mini
+```
+
+Run the eval suite — one disposable container per task, no network inside:
+
+```bash
+endstate eval --suite tasks/ --model gpt-4o-mini --jobs 4 --out benchmarks/
 ```
 
 Point it at anything OpenAI-compatible — vLLM, Ollama, a gateway:

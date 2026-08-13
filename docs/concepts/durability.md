@@ -232,10 +232,18 @@ against a re-pinned model and the history is valid while the behaviour is not. N
 records the provider, model version and tool schemas alongside the checkpoint and refuses to resume
 across a mismatch — which is probably what correctness requires.
 
-**Non-idempotent tools are handled by documentation.** The test suite covers the case honestly rather
-than pretending it away, which is better than most, and is still not a mechanism. A type-level
-distinction — tools declaring themselves idempotent or not, with the resume path treating them
-differently — would be enforceable. It does not exist here.
+**Non-idempotent tools are declared, not solved.** Tools now carry an `idempotent` flag, and the
+resume path reads it: an outstanding call to a tool that declares itself non-idempotent — `bash`,
+for one — is *not* replayed. It is answered with an error saying the outcome is unknown, so the
+conversation stays well-formed and the model checks the state instead of the harness silently
+committing twice.
+
+That is a real mechanism where there was none, and it is still only half the problem. The flag is a
+claim the tool author makes, and nothing verifies it. Refusing to replay is the safe default, but it
+is not *correct*: a run that died before its `git commit` ran leaves work undone, and the harness
+cannot tell that case from the one where it ran. Distinguishing them needs idempotency keys —
+recording an identifier with the side effect so the tool can ask "did I already do this?" — which
+is where the durable-execution engines in the table above start.
 
 **Long-running agents change the shape of the problem.** Everything above assumes a run that starts,
 crashes and resumes. Scheduled agents and always-on agents have no such boundary; their state
