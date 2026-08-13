@@ -1,0 +1,46 @@
+{
+  "id": "compaction-long-transcript-still-finishes",
+  "category": "compaction",
+  "description": "A long grind whose earliest instructions must survive compaction.",
+  "max_steps": 50,
+  "timeout_s": 600.0,
+  "budget": {
+    "max_context_tokens": 8000,
+    "reserve_output_tokens": 2000
+  },
+  "graders": [
+    {
+      "name": "endstate.evals.graders:command_succeeds",
+      "args": {
+        "command": "python -m unittest discover -s tests -t . -q",
+        "name": "the test suite passes",
+        "timeout_s": 120
+      }
+    },
+    {
+      "name": "endstate.evals.graders:paths_exist",
+      "args": {
+        "paths": [
+          "catalogue/summary.py"
+        ]
+      }
+    },
+    {
+      "name": "endstate.evals.graders:files_unchanged",
+      "args": {
+        "paths": [
+          "tests/test_summary.py"
+        ]
+      }
+    },
+    {
+      "name": "endstate.evals.graders:no_new_skips",
+      "args": {}
+    }
+  ],
+  "requires": {
+    "compaction_events": {
+      "min": 1
+    }
+  }
+}

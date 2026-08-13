@@ -4,9 +4,9 @@ This is the page the project exists for. Everything before it is harness; this i
 
 !!! info "Status"
 
-    The eval runner, the graders and the first twelve tasks are **implemented** — `endstate eval
-    --suite tasks/`. The three differentiating categories (compaction, permissioning, checkpoint
-    recovery) and the published benchmark are M3 and M4 in the
+    The eval runner, the graders, all four differentiating categories and the mutation check are
+    **implemented** — `endstate eval --suite tasks/` runs 22 tasks. The published benchmark across
+    hosted and self-hosted models is M4 in the
     [engineering plan](https://github.com/alvarodiez20/endstate/blob/main/PLAN.md); the sections
     below marked *planned* say so rather than describing them in the present tense.
 
@@ -167,13 +167,13 @@ because the 9% figure above is what the option costs when someone forgets to set
 
 ## The four task categories
 
-| Category | Grader asserts | Count | Status |
-| --- | --- | --- | --- |
-| Bug fix / feature / refactor | End state correct — tests green, files in place | 12 | shipped |
-| **Long-horizon / compaction** | Task completes **and** `compaction_events >= 1` **and** end state correct | 3 | planned |
-| **Permissioning** | Destructive request refused, tree hash unchanged, `denied_calls >= 1` | 3 | planned |
-| **Checkpoint recovery** | Killed at step *k*, resumed, tree hash equals uninterrupted run | 2 | planned |
-| **Cost regression** | Task completes under a declared token budget | 2 | planned |
+| Category | Grader asserts | Count |
+| --- | --- | --- |
+| Bug fix / feature / refactor | End state correct — tests green, files in place | 12 |
+| **Long-horizon / compaction** | Task completes **and** `compaction_events >= 1` **and** end state correct | 3 |
+| **Permissioning** | Destructive request refused, tree hash unchanged, `denied_calls >= 1` | 3 |
+| **Checkpoint recovery** | Killed at tool call *k*, resumed by a fresh loop, work still lands | 2 |
+| **Cost regression** | Task completes under a declared step or token budget | 2 |
 
 The first row is table stakes — it proves the agent can do the job at all, and plenty of benchmarks
 cover it.
@@ -189,17 +189,23 @@ Here is the uncomfortable question: how do you know your eval suite tests what i
 A test suite that passes whether or not the feature works is decoration. So the acceptance criterion
 for the differentiating tasks is a deliberate sabotage:
 
-- Disable compaction → the compaction tasks must **fail**
-- Disable the permission policy → the permissioning tasks must **fail**
-- Break checkpointing → the recovery tasks must **fail**
+| Guard removed | Result |
+| --- | --- |
+| The permission policy | `deny-recursive-delete` fails — `rm -rf data` runs and the tree changes |
+| The context budget | `compaction-audit-every-module` fails — end state correct, `compaction_events == 0` |
+| Resume reconciliation | the killed run leaves the suite red; the resumed one does not |
 
 If a guard can be removed and the suite stays green, that guard was never load-bearing and the tests
 were measuring something else.
 
-Almost nobody does this, and it is the cheapest way to find out that a test you trust is inert. Try it
-on your own suite once; the result is usually informative and rarely comfortable.
+The compaction row is the one worth staring at. With the budget removed the agent does the same
+work and leaves an **identical, correct** end state. The task fails only because compaction never
+fired — which is exactly the coverage claim a file-only grader would have got wrong.
 
-*(The guard sabotage above is planned for M3, with the categories it applies to.)*
+Almost nobody does this, and it is the cheapest way to find out that a test you trust is inert. Try it
+on your own suite once; the result is usually informative and rarely comfortable. It found two bugs
+here in the machinery built to do the finding — a bound typo that asserted nothing, and a grader
+exception that scored as a pass.
 
 ### The version of it that already runs
 
@@ -214,6 +220,30 @@ The first catches a grader that is inert. The second catches the worse kind: a g
 correct answer, which makes every model look bad and the suite look rigorous. Both are easy to write
 by accident and neither is visible by reading the task definition. Writing the twelve tasks turned
 up several of each before any model saw them.
+
+## What the sandbox cannot answer
+
+Three of the four differentiating categories need an assertion the filesystem cannot make.
+"Compaction fired at least once" is not a property of the end state, and neither is "the policy
+refused something" — an agent that ignored the request entirely leaves exactly the same tree as one
+the harness stopped.
+
+The obvious fix is to hand the grader the run result. That reopens the door the signature closed, so
+instead the *task* declares what the run must have done, and the **runner** checks it:
+
+```json
+"requires": { "denied_calls": { "min": 1 } }
+```
+
+`grade(sandbox) -> Verdict` is untouched. What stops this being a loophole by another name is that
+`requires` is a closed set of typed counters the harness recorded itself — policy decisions,
+compaction events, token totals — and unknown keys are refused at load time. A manifest naming
+`final_text` is an error, not a silently ignored field.
+
+That last part was not free. The first version accepted unknown keys, which meant a `{"minimum": 1}`
+typo parsed as a bound with *no* ends and passed for any value: the task file read as though it
+asserted something and asserted nothing. A guard that looks present and is inert is worse than no
+guard, which is the same argument as the rest of this page, one level down.
 
 ## Determinism
 

@@ -18,20 +18,24 @@ sandbox. The `RunResult` — steps, tokens, transcript — is recorded in the
 
 from __future__ import annotations
 
+import tempfile
 import threading
 import time
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from endstate.agent.context import ContextManager
-from endstate.agent.loop import AgentLoop
+from endstate.agent.loop import AgentLoop, RunResult
 from endstate.agent.permissions import PermissionPolicy, default_policy
-from endstate.agent.tools.base import ToolContext
+from endstate.agent.session import Session, SessionStore
+from endstate.agent.tools.base import Tool, ToolContext
 from endstate.evals.graders import Grader, grader_for
+from endstate.evals.recovery import Crash, CrashAt
 from endstate.evals.sandbox import Sandbox, SandboxError
 from endstate.evals.task import Task, Verdict
 from endstate.evals.tools import sandbox_tools
@@ -153,6 +157,7 @@ class EvalRunner:
         jobs: int = 1,
         provider_name: str = "",
         sandbox_name: str = "",
+        sessions: SessionStore | None = None,
         on_result: Callable[[TaskResult], None] | None = None,
     ) -> None:
         self.provider_factory = provider_factory
@@ -167,6 +172,13 @@ class EvalRunner:
         self.on_result = on_result
         self.accountant = CostAccountant(self.prices)
         self._lock = threading.Lock()
+        # A recovery task resumes from a checkpoint, so it needs somewhere
+        # durable to checkpoint to. Temporary by default rather than the CLI's
+        # `.endstate/` next to the tasks: an eval run is not a conversation
+        # anyone resumes by hand afterwards, and writing into the working tree
+        # would leave a session database in whatever directory it ran from.
+        self._session_dir = tempfile.TemporaryDirectory(prefix="endstate-sessions-")
+        self.sessions = sessions or SessionStore(Path(self._session_dir.name) / "sessions.sqlite3")
 
     def run_task(self, task: Task) -> TaskResult:
         started = time.monotonic()
@@ -194,22 +206,14 @@ class EvalRunner:
         accountant = CostAccountant(self.prices)
 
         with self.sandbox_factory(task) as sandbox:
-            loop = AgentLoop(
-                provider=deadline,
-                tools=sandbox_tools(sandbox),
-                tool_context=ToolContext(workdir=sandbox.workdir, timeout_s=self.tool_timeout_s),
-                policy=self.policy,
-                context=ContextManager(budget=task.budget),
-                accountant=accountant,
-                max_steps=task.max_steps,
-                system_prompt=self.system_prompt,
-            )
-            run = loop.run(task.prompt)
+            run = self._drive(task, sandbox, deadline, accountant)
 
             end_state = sandbox.seal()
             if task.holdout is not None:
                 sandbox.stage(task.holdout)
-            verdict = self._grade(task, sandbox)
+            # Conjunction, and the order matters for reading a failure: what the
+            # sandbox looks like first, then what the run had to have done.
+            verdict = self._grade(task, sandbox).merged_with(self._require(task, run))
 
         # Per-task accounting is merged into the suite total under a lock: with
         # jobs > 1 the merge is a read-modify-write on a shared dict.
@@ -232,6 +236,71 @@ class EvalRunner:
             model=str(getattr(provider, "model", "")),
             timed_out=deadline.expired,
         )
+
+    def _loop_for(
+        self,
+        task: Task,
+        sandbox: Sandbox,
+        provider: object,
+        accountant: CostAccountant,
+        session: Session,
+        tools: list[Tool] | None = None,
+    ) -> AgentLoop:
+        return AgentLoop(
+            provider=provider,
+            tools=tools if tools is not None else sandbox_tools(sandbox),
+            tool_context=ToolContext(workdir=sandbox.workdir, timeout_s=self.tool_timeout_s),
+            policy=self.policy,
+            context=ContextManager(budget=task.budget),
+            accountant=accountant,
+            max_steps=task.max_steps,
+            system_prompt=self.system_prompt,
+            session=session,
+        )
+
+    def _drive(
+        self,
+        task: Task,
+        sandbox: Sandbox,
+        provider: object,
+        accountant: CostAccountant,
+    ) -> RunResult:
+        """Run the agent, killing and resuming it partway if the task says to."""
+        session = self.sessions.create(model=str(getattr(provider, "model", "")))
+        if task.recovery is None:
+            return self._loop_for(task, sandbox, provider, accountant, session).run(task.prompt)
+
+        crashing = CrashAt(
+            sandbox_tools(sandbox),
+            task.recovery.crash_at_call,
+            after_side_effect=task.recovery.after_side_effect,
+        )
+        loop = self._loop_for(task, sandbox, provider, accountant, session, crashing.tools)
+        try:
+            return loop.run(task.prompt)
+        except Crash:
+            pass
+
+        # A *new* loop over the reloaded session is the point. Reusing the old
+        # object would resume from memory that a dead process would not have
+        # had, which is the difference between testing resume and testing that
+        # nothing was dropped from a list.
+        resumed = self._loop_for(
+            task, sandbox, provider, accountant, self.sessions.resume(session.id)
+        )
+        return resumed.resume()
+
+    def _require(self, task: Task, run: RunResult) -> Verdict:
+        counters = {
+            "compaction_events": len(run.compaction_events),
+            "denied_calls": len(run.denied_calls),
+            "unsettled_calls": len(run.unsettled_calls),
+            "steps": run.steps,
+            "input_tokens": run.usage.input_tokens,
+            "output_tokens": run.usage.output_tokens,
+            "total_tokens": run.usage.total_tokens,
+        }
+        return Verdict.from_checks(task.requires.check(counters, run.stop_reason.value))
 
     def _grade(self, task: Task, sandbox: Sandbox) -> Verdict:
         try:

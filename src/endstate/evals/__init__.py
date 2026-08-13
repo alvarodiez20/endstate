@@ -15,6 +15,7 @@ print(render_markdown(runner.run_suite(tasks)))
 """
 
 from endstate.evals.graders import Grader, GraderContractError, grader_for, resolve
+from endstate.evals.recovery import Crash, CrashAt
 from endstate.evals.report import render_markdown, write_report
 from endstate.evals.runner import EvalRunner, SuiteResult, TaskResult
 from endstate.evals.sandbox import (
@@ -27,8 +28,11 @@ from endstate.evals.sandbox import (
     docker_available,
 )
 from endstate.evals.task import (
+    Bound,
     Check,
     GraderSpec,
+    Recovery,
+    RunRequirements,
     Task,
     TaskError,
     Verdict,
@@ -38,6 +42,11 @@ from endstate.evals.task import (
 from endstate.evals.tools import SandboxBashTool, sandbox_tools
 
 __all__ = [
+    "RunRequirements",
+    "Recovery",
+    "Bound",
+    "CrashAt",
+    "Crash",
     "DEFAULT_IMAGE",
     "Check",
     "DockerSandbox",

@@ -22,10 +22,9 @@ through.
 pip install endstate
 ```
 
-> **Status: v0.0.1, in development.** The harness and the eval runner work — `endstate eval --suite
-> tasks/` runs 12 tasks in disposable containers and grades what they left behind. The
-> differentiating task categories and the published benchmark are next.
-> Follow the [build plan](PLAN.md) for what ships when.
+> **Status: v0.1.0 on PyPI.** `endstate eval --suite tasks/` runs 22 tasks in disposable containers
+> and grades what they left behind. The published benchmark across hosted and self-hosted models is
+> next. Follow the [build plan](PLAN.md) for what ships when.
 
 **[Documentation →](https://alvarodiez20.github.io/endstate/)** — including
 [How agents actually work](https://alvarodiez20.github.io/endstate/concepts/), a walk through the
@@ -74,19 +73,30 @@ that were never in the sandbox.
 
 | Category | What it proves | |
 | --- | --- | --- |
-| Bug fix, feature, refactor | The agent can do the job at all | 12 shipped |
-| **Long-horizon / compaction** | It still works when the task does not fit in the context window | next |
-| **Permissioning** | It *refuses*. Pass means the destructive command did not run | next |
-| **Checkpoint recovery** | Kill it mid-run, resume, and reach the same end state | next |
+| Bug fix, feature, refactor | The agent can do the job at all | 12 |
+| **Long-horizon / compaction** | It still works when the task does not fit in the context window | 3 |
+| **Permissioning** | It *refuses*. Pass means the destructive command did not run | 3 |
+| **Checkpoint recovery** | Kill it mid-run, resume, and the work still lands | 2 |
+| **Cost regression** | It finishes under a declared step and token budget | 2 |
 
-The last three are the ones that break real deployments, and almost nothing tests them.
+The last four are the ones that break real deployments, and almost nothing tests them.
+
+Each is a **conjunction** — the work *and* the guard — which is not decoration. A scripted oracle
+that writes byte-perfect solutions for all 22 tasks passes 16: it fails every compaction and
+permissioning task, because producing the right files is not what those categories measure.
 
 ## How do you know the evals test anything?
 
-Every task ships a reference solution that no agent ever sees, and the test suite asserts both
-directions for all twelve: the graders **fail** on the untouched fixture, and **pass** on the
-reference fix. A grader that passes either way is measuring nothing, and it is much easier to write
-one of those than most people expect — several in this suite did, before that check caught them.
+Two checks, because a test suite that passes whether or not the feature works is decoration.
+
+**Every task is graded against itself.** Each ships a reference solution no agent ever sees, and the
+suite asserts both directions: the graders **fail** on the untouched fixture and **pass** on the
+reference fix. Several graders in this suite passed either way before that check caught them.
+
+**Every guard is removed on purpose.** Disable the permission policy and the permissioning tasks
+must fail. Disable the context budget and the compaction tasks must fail — even though the end state
+is identical and correct, because compaction never fired. If a guard can be taken away and the suite
+stays green, that guard was never load-bearing.
 
 ## Quickstart
 
