@@ -1,6 +1,72 @@
 # CHANGELOG
 
 
+## v0.3.0 (2026-08-14)
+
+### Features
+
+- Measure the flake rate, and animate the README hero
+  ([#13](https://github.com/alvarodiez20/endstate/pull/13),
+  [`939d9a5`](https://github.com/alvarodiez20/endstate/commit/939d9a5d2774d09e3ac7a2f95cd8502593dc4770))
+
+Two things: a way to measure the determinism the plan asks for, and an animated README hero.
+
+## `endstate eval --repeat N`
+
+M2's metric is a flake rate under 5% over three consecutive runs, and there was no way to measure it
+  short of doing it by hand and diffing. Now:
+
+```bash endstate eval --suite tasks/ --repeat 3 --out benchmarks/ # or make determinism ```
+
+It runs the suite N times against the same model, reports the fraction of tasks that did not return
+  the same verdict every time, and with `--out` writes a `-flake.md` naming each one. Each
+  repetition gets a fresh runner — sharing one accumulates every run's tokens into a single
+  accountant and reports three runs' cost as one.
+
+## A number that certifies nothing is worse than no number
+
+The first version of this reported:
+
+> **Flake rate:** 0.0% — every task returned the same verdict in every run.
+
+for a run where Docker had died and **all seven tasks errored identically**. Technically true,
+  completely misleading, and exactly the failure the eval suite exists to prevent: something that
+  looks like evidence and isn't. A broken suite is perfectly reproducible.
+
+So the rate now sits under `determinism_established()`, which answers **no** when any task hit a
+  harness error, or when there is only one run — however stable the verdicts looked. The report
+  leads with that, and the CLI prints it in red.
+
+I found this because Docker crashed mid-session for the third time. It would have been easy to miss
+  on a healthy machine and to notice for the first time in a published table.
+
+## The README hero
+
+The supplied `hero.svg` was **static** — no `<animate>`, no `@keyframes`, no CSS animation. The file
+  still had empty gaps inside elements where animate tags had been stripped, so something removed
+  them on the way out.
+
+Now animated: a single highlight walks the seven loop stages on a 9.8s cycle, and the return path
+  brightens as it wraps. **Nothing else moves.** The verdict at the bottom is the whole argument,
+  and a reader glancing at a README should never catch the payload mid-reveal.
+
+Two other things it needed:
+
+- **Light-theme only.** Hardcoded fills became CSS custom properties with a dark palette behind a
+  media query, and the accent lifts from `#0f766e` to keep contrast on `#0d0d0d`. Verified in both
+  themes in a browser. - **`pytest -q → 0`** became `unittest → 0`. The tasks run `python -m
+  unittest discover`; the hero of a project about precision should be precise.
+
+Replaces `endstate-thesis.svg`, whose content this supersedes.
+
+## Verification
+
+- 351 tests, ruff / `ruff format` / `mypy --strict` / docs `--strict` clean - A test drives a
+  deliberately flaky provider — fixes the file on odd attempts, shrugs on even ones — and asserts
+  the rate comes back at 100%. A determinism check that only ever reports 0% would be the same
+  failure as the one above.
+
+
 ## v0.2.0 (2026-08-14)
 
 ### Features
