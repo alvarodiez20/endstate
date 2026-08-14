@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 436" width="880" height="436" role="img" aria-labelledby="t d">
+<title id="t">endstate — an agent harness with evals that grade the end state, not the output</title>
+<desc id="d">Every step of an endstate run is one loop: fit the context to the budget, call the provider, record and checkpoint, check whether the model asked for tools, check the permission policy, run the tool, feed the results back. It is built from primitives — six file and shell tools, one provider interface, SQLite checkpointing with resume, and Decimal cost accounting. Its evals throw away the transcript and assert against the sandbox instead: the test suite exits zero, the tree hash is unchanged, the destructive command was refused, Verdict.ok().</desc>
+
+<style>
+  /* Palette as CSS custom properties so one file serves both themes. A media
+     query inside an SVG is evaluated by the browser even when the file is
+     loaded as an &lt;img&gt;, which is how this works in a README. */
+  :root {
+    --surface: #ffffff;
+    --ink: #0d0d0d;
+    --muted: #8a8a8a;
+    --muted-strong: #6b6b6b;
+    --hair: #e6e6e6;
+    --box: #fafafa;
+    --accent: #0f766e;
+    --accent-tint: #f0faf8;
+    --error: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #0d0d0d;
+      --ink: #f4f4f5;
+      --muted: #8a8a8a;
+      --muted-strong: #a1a1aa;
+      --hair: #2a2a2e;
+      --box: #161619;
+      /* The brand accent is specified against white; on #0d0d0d it drops to
+         about 2:1, so the dark palette keeps the hue and lifts the contrast. */
+      --accent: #2dd4bf;
+      --accent-tint: #10201e;
+      --error: #f2867c;
+    }
+  }
+
+  .surface { fill: var(--surface) }
+  .ink { fill: var(--ink) }
+  .muted { fill: var(--muted) }
+  .muted-strong { fill: var(--muted-strong) }
+  .accent { fill: var(--accent) }
+  .error { fill: var(--error) }
+  .box { fill: var(--box); stroke: var(--hair) }
+  .hair { stroke: var(--hair) }
+  .accent-stroke { stroke: var(--accent); fill: none }
+  .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif }
+  .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace }
+
+  /* The only thing that moves. The loop row is the one part of this picture
+     that *is* a sequence, so the highlight walks it — seven stages, then back
+     to the start, which is what "one iteration per step" means. Everything
+     else, including the verdict at the bottom, stays put: it is the payload,
+     and a reader glancing at the image should never catch it mid-reveal. */
+  .active {
+    fill: var(--accent-tint);
+    stroke: var(--accent);
+    animation: travel 9.8s steps(1, end) infinite;
+  }
+  @keyframes travel {
+    0%     { transform: translateX(0) }
+    12.5%  { transform: translateX(117px) }
+    25%    { transform: translateX(235px) }
+    37.5%  { transform: translateX(352px) }
+    50%    { transform: translateX(469px) }
+    62.5%  { transform: translateX(587px) }
+    75%    { transform: translateX(704px) }
+    87.5%  { transform: translateX(704px) }
+    100%   { transform: translateX(0) }
+  }
+
+  /* The return path lights up while the highlight wraps. */
+  .wrap { animation: wrap 9.8s ease-in-out infinite; }
+  @keyframes wrap {
+    0%, 80%  { opacity: 0.35 }
+    88%, 96% { opacity: 1 }
+    100%     { opacity: 0.35 }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .active { animation: none }
+    .wrap { animation: none; opacity: 1 }
+  }
+</style>
+
+<rect width="880" height="436" class="surface"/>
+
+<text x="32" y="44" class="sans ink" font-size="25" font-weight="500" letter-spacing="-.6">endstate</text>
+<text x="32" y="72" class="sans muted-strong" font-size="14.5">An agent harness with evals that grade the end state, not the output.</text>
+
+<g class="mono muted" font-size="10" letter-spacing=".3">
+  <text x="32" y="112">THE LOOP — one iteration per step</text>
+  <text x="32" y="268">BUILT FROM PRIMITIVES — no agent framework</text>
+  <text x="32" y="360">AND THE EVALS IGNORE ALL OF IT</text>
+</g>
+
+<rect x="32" y="124" width="112" height="60" rx="3" class="box"/>
+<rect x="149" y="124" width="112" height="60" rx="3" class="box"/>
+<rect x="267" y="124" width="112" height="60" rx="3" class="box"/>
+<rect x="384" y="124" width="112" height="60" rx="3" class="box"/>
+<rect x="501" y="124" width="112" height="60" rx="3" class="box"/>
+<rect x="619" y="124" width="112" height="60" rx="3" class="box"/>
+<rect x="736" y="124" width="112" height="60" rx="3" class="box"/>
+<rect x="32" y="124" width="112" height="60" rx="3" class="active"/>
+
+<g class="mono" font-size="11">
+  <text x="46" y="148" font-weight="500" class="ink">context</text>
+  <text x="46" y="162" font-weight="500" class="ink">.fit()</text>
+  <text x="46" y="176" font-size="10" class="muted">budget</text>
+  <text x="163" y="148" font-weight="500" class="ink">provider</text>
+  <text x="163" y="162" font-weight="500" class="ink">.complete()</text>
+  <text x="163" y="176" font-size="10" class="muted">it proposes</text>
+  <text x="281" y="148" font-weight="500" class="ink">_record()</text>
+  <text x="281" y="176" font-size="10" class="muted">checkpoint</text>
+  <text x="398" y="148" font-weight="500" class="ink">tool_calls?</text>
+  <text x="398" y="176" font-size="10" class="muted">the exit</text>
+  <text x="515" y="148" font-weight="500" class="ink">policy</text>
+  <text x="515" y="162" font-weight="500" class="ink">.check()</text>
+  <text x="515" y="176" font-size="10" class="muted">before the tool</text>
+  <text x="633" y="148" font-weight="500" class="ink">run(call)</text>
+  <text x="633" y="176" font-size="10" class="muted">the side effect</text>
+  <text x="750" y="148" font-weight="500" class="ink">role="tool"</text>
+  <text x="750" y="176" font-size="10" class="muted">results back</text>
+</g>
+
+<g class="wrap">
+  <path d="M 848 196 L 848 212 L 32 212 L 32 200" class="accent-stroke"/>
+  <path d="M 32 194 l -4 8 l 8 0 z" class="accent"/>
+  <rect x="392" y="204" width="96" height="16" class="surface"/>
+  <text x="440" y="216" text-anchor="middle" class="mono accent" font-size="11">next step</text>
+</g>
+
+<line x1="32" y1="244" x2="848" y2="244" class="hair"/>
+<line x1="32" y1="336" x2="848" y2="336" class="hair"/>
+
+<g class="mono" font-size="11">
+  <text x="32" y="292" class="ink">read · write · edit · glob · grep · bash</text>
+  <text x="32" y="308" font-size="10" class="muted">six tools, JSON Schema each</text>
+  <text x="332" y="292" class="ink">one provider interface</text>
+  <text x="332" y="308" font-size="10" class="muted">complete(messages, tools)</text>
+  <text x="500" y="292" class="ink">SQLite checkpoints</text>
+  <text x="500" y="308" font-size="10" class="muted">--resume, per tool call</text>
+  <text x="672" y="292" class="ink">Decimal cost + spans</text>
+  <text x="672" y="308" font-size="10" class="muted">usage × your price table</text>
+</g>
+
+<g class="mono" font-size="11">
+  <g>
+    <text x="32" y="386" class="error">✕</text>
+    <text x="50" y="386" class="muted-strong">what it said:  "I fixed the failing test and the suite is green."</text>
+    <rect x="50" y="382" width="412" height="1" class="error"/>
+  </g>
+  <g>
+    <text x="32" y="410" class="accent">✓</text>
+    <text x="50" y="410" class="ink">what it left behind:</text>
+  </g>
+  <g class="accent">
+    <text x="186" y="410">unittest → 0</text>
+    <text x="285" y="410">· tree hash unchanged</text>
+    <text x="428" y="410">· rm -rf refused</text>
+    <text x="548" y="410" font-weight="500">→ Verdict.ok()</text>
+  </g>
+</g>
+</svg>

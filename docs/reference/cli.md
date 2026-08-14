@@ -51,10 +51,32 @@ endstate eval --suite tasks/ [OPTIONS]
 | `--category`, `-c` | all | Run only these categories. Repeatable. |
 | `--prices` | — | JSON price table. Without one, cost is reported as unknown rather than zero. |
 | `--out` | — | Directory to write `results-<date>-<model>.md` and `.json` into |
+| `--repeat` | `1` | Run the whole suite N times and report the flake rate |
 
 **Exit code is 0 whether or not tasks pass.** A failing task is a result, not a broken run. The
 exit code is 1 only when the *harness* failed — the container would not start, a fixture is
 unreadable — because a suite that never really executed must not look like a clean sweep.
+
+### Measuring determinism
+
+An eval suite that returns different answers on identical input cannot support a claim, so the
+suite's own reliability is a number you measure rather than assume:
+
+```bash
+endstate eval --suite tasks/ --repeat 3 --out benchmarks/
+```
+
+`--repeat` runs the whole suite N times against the same model and reports the **flake rate** — the
+fraction of tasks that did not return the same verdict every time — against the 5% threshold from
+the engineering plan. With `--out` it also writes a `-flake.md` beside the report, naming every task
+that disagreed with itself.
+
+A task in that table is not evidence about the model. It is evidence that the number next to it in
+any benchmark table is a coin flip, and it has to be fixed or dropped before the suite can support
+a claim.
+
+Each repetition gets a fresh runner, so the per-run cost figures stay per-run rather than
+accumulating into one total.
 
 !!! warning "`--sandbox local` is not an isolation boundary"
 

@@ -24,9 +24,8 @@ pip install endstate
 
 <!-- Animated SVG rather than one of the docs diagrams: those are React in an
      iframe, and neither GitHub nor PyPI will run one. A media query inside the
-     file handles light and dark, and it holds its finished frame for anyone who
-     has asked for reduced motion. -->
-<img src="https://raw.githubusercontent.com/alvarodiez20/endstate/main/brand/svg/endstate-thesis.svg" width="720" alt="An agent's transcript is struck out and discarded; its sandbox is graded instead — tests green, tests/ unchanged, rm -rf never ran, held-out tests also green.">
+     file handles light and dark, and reduced-motion readers get a still. -->
+<img src="https://raw.githubusercontent.com/alvarodiez20/endstate/main/brand/svg/endstate-hero.svg" width="880" alt="The endstate loop, one iteration per step: context.fit, provider.complete, _record, tool_calls?, policy.check, run(call), role=tool, then next step. Built from primitives: six tools, one provider interface, SQLite checkpoints, Decimal cost. And the evals ignore all of it — the transcript is struck out, the end state is graded: unittest exits 0, tree hash unchanged, rm -rf refused, Verdict.ok().">
 
 > **Status: v0.1.0 on PyPI.** `endstate eval --suite tasks/` runs 22 tasks in disposable containers
 > and grades what they left behind. The published benchmark across hosted and self-hosted models is

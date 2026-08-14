@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -153,6 +154,131 @@ def _verdict_cell(result: TaskResult) -> str:
     return "pass" if result.passed else f"fail — {result.verdict.reason}"
 
 
+FLAKE_THRESHOLD = 0.05
+"""The rate above which a suite cannot support a claim.
+
+From the engineering plan's M2 metric. Determinism is aspirational rather than
+achievable — providers do not offer bit-identical output even at temperature 0 —
+so the criterion is a low rate, not zero.
+"""
+
+
+def flake_rate(suites: Sequence[SuiteResult]) -> float:
+    """Fraction of tasks that did not return the same verdict in every run.
+
+    The number the whole determinism claim reduces to, and it is only meaningful
+    over identical inputs: same suite, same model, same seed. One run per task
+    cannot tell capability from luck, and providers do not offer bit-identical
+    output even at temperature 0 — so what is achievable is a low rate, not zero,
+    and every result below the threshold is still a distribution rather than a
+    fact.
+
+    Returns 0.0 for fewer than two runs: nothing has been compared yet, and
+    reporting a rate for a single run would imply otherwise.
+    """
+    if len(suites) < 2:
+        return 0.0
+    outcomes = _outcomes(suites)
+    if not outcomes:
+        return 0.0
+    flaky = sum(1 for results in outcomes.values() if len(set(results)) > 1)
+    return flaky / len(outcomes)
+
+
+def _outcomes(suites: Sequence[SuiteResult]) -> dict[str, list[bool]]:
+    """Pass/fail per task per run, keyed by task id."""
+    outcomes: dict[str, list[bool]] = {}
+    for suite in suites:
+        for result in suite.results:
+            outcomes.setdefault(result.task_id, []).append(result.passed)
+    return outcomes
+
+
+def determinism_established(suites: Sequence[SuiteResult]) -> tuple[bool, str]:
+    """Whether these runs can support a determinism claim at all.
+
+    A low flake rate is necessary and nowhere near sufficient, because the most
+    reassuring number this module can produce is also what a completely broken
+    run produces. A suite where the container never started fails every task,
+    identically, every time — perfectly reproducible and evidence of nothing.
+
+    So the rate is reported *under* this: if any task hit a harness error, or
+    there is only one run, the answer is "not established" no matter how stable
+    the verdicts looked.
+    """
+    if len(suites) < 2:
+        return False, "fewer than two runs — nothing has been compared"
+    if not _outcomes(suites):
+        return False, "no tasks ran"
+    errored = {r.task_id for s in suites for r in s.results if r.error}
+    if errored:
+        listed = ", ".join(sorted(errored)[:5])
+        return False, f"{len(errored)} task(s) hit a harness error, not a verdict: {listed}"
+    return True, ""
+
+
+def render_flake_markdown(suites: Sequence[SuiteResult], threshold: float = FLAKE_THRESHOLD) -> str:
+    """Report determinism across repeated runs of the same suite."""
+    rate = flake_rate(suites)
+    outcomes = _outcomes(suites)
+    vectors = {s.verdict_vector for s in suites}
+    established, why_not = determinism_established(suites)
+
+    model = next((s.model for s in suites if s.model), "unknown model")
+    lines = [
+        f"# Flake report — {model}",
+        "",
+        f"- **Runs:** {len(suites)}",
+        f"- **Tasks:** {len(outcomes)}",
+        f"- **Flake rate:** {rate:.1%} ({'within' if rate <= threshold else 'OVER'}"
+        f" the {threshold:.0%} threshold)",
+        f"- **Identical verdict vectors:** {'yes' if len(vectors) == 1 else 'no'}",
+        "",
+    ]
+
+    if not established:
+        lines += [
+            f'!!! danger "Determinism not established — {why_not}"',
+            "",
+            "    The rate above is real and it certifies nothing. A run where the sandbox never"
+            " started fails every task identically every time, which is perfectly reproducible and"
+            " evidence of nothing at all. Fix the errors and run it again before quoting a number.",
+            "",
+        ]
+
+    unstable = {t: r for t, r in outcomes.items() if len(set(r)) > 1}
+    if unstable:
+        lines += [
+            "## Tasks that did not agree with themselves",
+            "",
+            "| task | runs |",
+            "| --- | --- |",
+        ]
+        for task_id, results in sorted(unstable.items()):
+            lines.append(f"| `{task_id}` | {' '.join('pass' if r else 'fail' for r in results)} |")
+        lines += [
+            "",
+            "A task in this table is not evidence about the model. It is evidence that the number"
+            " next to it in any benchmark table is a coin flip, and it has to be fixed or dropped"
+            " before the suite can support a claim.",
+            "",
+        ]
+    else:
+        lines += ["Every task returned the same verdict in every run.", ""]
+
+    lines += [
+        "## Outcomes",
+        "",
+        "| task | " + " | ".join(f"run {i + 1}" for i in range(len(suites))) + " |",
+        "| --- |" + " --- |" * len(suites),
+    ]
+    for task_id, results in sorted(outcomes.items()):
+        cells = " | ".join("pass" if r else "fail" for r in results)
+        lines.append(f"| `{task_id}` | {cells} |")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def write_report(
     suite: SuiteResult, out_dir: Path, prices: PriceTable | None = None
 ) -> tuple[Path, Path]:
@@ -184,8 +310,12 @@ def _slug(text: str) -> str:
 
 
 __all__ = [
+    "FLAKE_THRESHOLD",
+    "determinism_established",
+    "flake_rate",
     "median",
     "percentile",
+    "render_flake_markdown",
     "render_markdown",
     "total_cost",
     "write_report",

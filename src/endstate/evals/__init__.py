@@ -16,7 +16,14 @@ print(render_markdown(runner.run_suite(tasks)))
 
 from endstate.evals.graders import Grader, GraderContractError, grader_for, resolve
 from endstate.evals.recovery import Crash, CrashAt
-from endstate.evals.report import render_markdown, write_report
+from endstate.evals.report import (
+    FLAKE_THRESHOLD,
+    determinism_established,
+    flake_rate,
+    render_flake_markdown,
+    render_markdown,
+    write_report,
+)
 from endstate.evals.runner import EvalRunner, SuiteResult, TaskResult
 from endstate.evals.sandbox import (
     DEFAULT_IMAGE,
@@ -42,6 +49,10 @@ from endstate.evals.task import (
 from endstate.evals.tools import SandboxBashTool, sandbox_tools
 
 __all__ = [
+    "FLAKE_THRESHOLD",
+    "determinism_established",
+    "flake_rate",
+    "render_flake_markdown",
     "RunRequirements",
     "Recovery",
     "Bound",
