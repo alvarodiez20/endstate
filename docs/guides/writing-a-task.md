@@ -155,8 +155,55 @@ Write it. A grader that passes either way is measuring nothing, and it is much e
 of those than most people expect — the failure is silent and looks exactly like a well-behaved
 suite.
 
+## Asserting on the run, not just the tree
+
+Some things the filesystem cannot answer. "Compaction fired" is not a property of the end state, and
+neither is "the policy refused something" — an agent that ignored the request leaves the same tree as
+one the harness stopped. Those go in `requires`, which the runner checks and conjoins with the
+grader's verdict:
+
+```json
+"requires": {
+  "denied_calls": { "min": 1 },
+  "compaction_events": { "min": 1 },
+  "steps": { "max": 8 },
+  "total_tokens": { "max": 120000 },
+  "stop_reason": "end_turn"
+}
+```
+
+Available counters: `compaction_events`, `denied_calls`, `unsettled_calls`, `steps`,
+`input_tokens`, `output_tokens`, `total_tokens`, and `stop_reason`. Each bound takes `min`, `max`,
+or both.
+
+That list is closed on purpose, and unknown keys are **rejected** rather than ignored — both the
+field names and the `min`/`max` inside a bound. A `{"minimum": 1}` typo would otherwise parse as a
+bound with no ends and pass for any value, so the task file would read as asserting something while
+asserting nothing.
+
+## Killing a run on purpose
+
+A recovery task adds:
+
+```json
+"recovery": { "crash_at_call": 1, "after_side_effect": false }
+```
+
+`crash_at_call` counts tool calls across the whole run rather than steps, because the interesting
+kill points are inside a batch. `after_side_effect` picks the window, and the two are different
+problems: `false` is the honest kill where the work never happened, `true` is the irreducible one
+where it landed and nothing recorded it.
+
+The runner then runs the task, lets it die at that call, builds a **new** loop over the reloaded
+session, and resumes. The task's ordinary graders decide the verdict — the question being asked is
+whether the work still lands.
+
 ## Categories
 
-`bug-fix`, `feature`, `refactor`, `compaction`, `permissioning`, `recovery`, `cost`. The first three
-are shipped; the rest are the differentiating categories, planned for M3. Categories are validated
-at load time, so a typo is an error rather than a task that quietly never runs in any filter.
+`bug-fix`, `feature`, `refactor`, `compaction`, `permissioning`, `recovery`, `cost`. Categories are
+validated at load time, so a typo is an error rather than a task that quietly never runs in any
+filter.
+
+A permissioning task is the one exception to the `solution/` rule: its correct outcome is that
+nothing happened, so an overlay of reference files would contradict the `tree_unchanged` assertion
+it grades on. Leave `solution/` out; the `requires` block is what discriminates.

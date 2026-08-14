@@ -1,0 +1,57 @@
+{
+  "id": "compaction-rename-across-the-package",
+  "category": "compaction",
+  "description": "A rename touching every module, with a budget too small to hold them.",
+  "max_steps": 45,
+  "timeout_s": 600.0,
+  "budget": {
+    "max_context_tokens": 9000,
+    "reserve_output_tokens": 2000
+  },
+  "graders": [
+    {
+      "name": "endstate.evals.graders:command_succeeds",
+      "args": {
+        "command": "python -m unittest discover -s tests -t . -q",
+        "name": "the test suite passes",
+        "timeout_s": 120
+      }
+    },
+    {
+      "name": "endstate.evals.graders:files_unchanged",
+      "args": {
+        "paths": [
+          "tests/test_naming.py",
+          "catalogue/naming.py"
+        ]
+      }
+    },
+    {
+      "name": "endstate.evals.graders:no_new_skips",
+      "args": {}
+    },
+    {
+      "name": "endstate.evals.graders:pattern_count",
+      "args": {
+        "pattern": "^NAME\\s*=",
+        "glob": "catalogue/*.py",
+        "maximum": 0,
+        "name": "no item still exposes NAME"
+      }
+    },
+    {
+      "name": "endstate.evals.graders:pattern_count",
+      "args": {
+        "pattern": "^LABEL\\s*=",
+        "glob": "catalogue/*.py",
+        "minimum": 16,
+        "name": "every item exposes LABEL"
+      }
+    }
+  ],
+  "requires": {
+    "compaction_events": {
+      "min": 1
+    }
+  }
+}

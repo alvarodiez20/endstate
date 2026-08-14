@@ -246,3 +246,32 @@ def test_verdict_helpers() -> None:
     assert [c.name for c in merged.failed_checks] == ["b"]
     assert str(Check(name="a", passed=True)) == "[pass] a"
     assert str(Check(name="a", passed=False, detail="why")) == "[FAIL] a: why"
+
+
+def test_merging_keeps_a_failure_that_carries_no_checks() -> None:
+    """A grader that raised fails with a reason and an empty check list.
+
+    Recomputing `passed` from the merged checks would read that empty list as
+    "nothing failed" and turn a hard grader error into a pass — silently, and in
+    the one direction that matters.
+    """
+    raised = Verdict.fail("grader raised TypeError: missing 'paths'")
+    fine = Verdict.from_checks([Check(name="denied calls is at least 1", passed=True)])
+
+    assert not raised.merged_with(fine).passed
+    assert not fine.merged_with(raised).passed
+    assert "TypeError" in raised.merged_with(fine).reason
+
+
+def test_merging_two_passes_still_passes() -> None:
+    left = Verdict.from_checks([Check(name="a", passed=True)])
+    right = Verdict.from_checks([Check(name="b", passed=True)])
+    merged = left.merged_with(right)
+    assert merged.passed
+    assert [c.name for c in merged.checks] == ["a", "b"]
+
+
+def test_merging_names_every_failed_check_once() -> None:
+    left = Verdict.from_checks([Check(name="a", passed=False)])
+    right = Verdict.from_checks([Check(name="b", passed=False)])
+    assert left.merged_with(right).reason == "a; b"

@@ -18,6 +18,7 @@ real run between two known answers.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -25,7 +26,7 @@ import pytest
 from endstate.evals.graders import grader_for
 from endstate.evals.runner import EvalRunner
 from endstate.evals.sandbox import LocalSandbox, stage_tree
-from endstate.evals.task import Task, discover_tasks
+from endstate.evals.task import Bound, Task, Verdict, discover_tasks
 from endstate.providers.fake import FakeProvider
 from endstate.types import Message, Response, StopReason, ToolCall, Usage
 
@@ -34,16 +35,56 @@ TASKS = discover_tasks(SUITE)
 TASK_IDS = [t.id for t in TASKS]
 
 
+ZERO_COUNTERS = dict.fromkeys(
+    (
+        "compaction_events",
+        "denied_calls",
+        "unsettled_calls",
+        "steps",
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+    ),
+    0,
+)
+
+
+def satisfying_counters(task: Task) -> dict[str, int]:
+    """What a correct run would have to report for this task's requirements.
+
+    The minimum each bound asks for — one compaction event, one denied call —
+    because that is the cheapest run that still counts as having exercised the
+    guard the task exists to test.
+    """
+    counters = dict(ZERO_COUNTERS)
+    for field, bound in task.requires:
+        if field == "stop_reason" or bound is None:
+            continue
+        assert isinstance(bound, Bound)
+        counters[field] = bound.min if bound.min is not None else counters[field]
+    return counters
+
+
 def grade(task: Task, tmp_path: Path, *, solved: bool) -> tuple[bool, str]:
-    """Run a task's graders against its fixture, optionally solved first."""
+    """Grade a task's fixture, optionally solved first.
+
+    Both halves of the verdict, because for three of the seven categories the
+    graders alone cannot discriminate. A permissioning task's grader says "the
+    tree is untouched", which an agent that did nothing at all also satisfies —
+    only `denied_calls >= 1` separates *refused* from *ignored*.
+    """
     with LocalSandbox(task.fixture, tmp_path / "box") as sandbox:
-        if solved:
-            assert task.solution is not None
+        if solved and task.solution is not None:
             stage_tree(task.solution, sandbox.workdir)
         sandbox.seal()
         if task.holdout is not None:
             sandbox.stage(task.holdout)
         verdict = grader_for(task.graders)(sandbox)
+
+    counters = satisfying_counters(task) if solved else dict(ZERO_COUNTERS)
+    stop_reason = task.requires.stop_reason or "end_turn"
+    verdict = verdict.merged_with(Verdict.from_checks(task.requires.check(counters, stop_reason)))
+
     detail = "\n".join(str(c) for c in verdict.checks)
     return verdict.passed, detail
 
@@ -61,10 +102,22 @@ def test_the_untouched_fixture_fails(task: Task, tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("task", TASKS, ids=TASK_IDS)
-def test_every_task_ships_a_solution_and_a_holdout(task: Task) -> None:
-    """Both are what make the two tests above possible."""
-    assert task.solution is not None, f"{task.id} has no solution/ to check the graders against"
+def test_every_task_ships_a_holdout(task: Task) -> None:
     assert task.holdout is not None, f"{task.id} has no holdout/, so special-casing goes unseen"
+
+
+@pytest.mark.parametrize("task", TASKS, ids=TASK_IDS)
+def test_every_task_that_changes_the_tree_ships_a_solution(task: Task) -> None:
+    """A permissioning task is the exception, and the exception is the point.
+
+    Its correct outcome is that nothing happened, so an overlay of reference
+    files would contradict the very assertion it grades on. For every other
+    category the solution is what makes the two tests above possible.
+    """
+    if task.category == "permissioning":
+        assert task.solution is None, f"{task.id} grades an untouched tree but ships a solution"
+        return
+    assert task.solution is not None, f"{task.id} has no solution/ to check the graders against"
 
 
 @pytest.mark.parametrize("task", TASKS, ids=TASK_IDS)
@@ -104,7 +157,38 @@ def test_every_task_asserts_more_than_a_green_test_run() -> None:
     for task in TASKS:
         names = {spec.name.rpartition(":")[2] for spec in task.graders}
         assert names - {"command_succeeds"}, f"{task.id} only runs a command"
-        assert "files_unchanged" in names, f"{task.id} does not pin its test files"
+        pinned = {"files_unchanged", "tree_unchanged"} & names
+        assert pinned, f"{task.id} pins neither its test files nor the whole tree"
+
+
+def test_the_suite_covers_the_categories_m3_promised() -> None:
+    counts = {c: sum(1 for t in TASKS if t.category == c) for t in TASKS for c in [t.category]}
+    assert counts.get("compaction", 0) >= 3
+    assert counts.get("permissioning", 0) >= 3
+    assert counts.get("recovery", 0) >= 2
+    assert counts.get("cost", 0) >= 2
+    assert len(TASKS) >= 20, "S2 wants a report over at least twenty tasks"
+
+
+def test_each_differentiating_task_states_what_the_run_must_do() -> None:
+    """A category task whose guard is not asserted is decoration.
+
+    Compaction and permissioning are conjunctions — the work *and* the guard —
+    and the guard half is not a property of the filesystem, so it has to be in
+    `requires` or it is not being checked at all.
+    """
+    for task in TASKS:
+        if task.category == "compaction":
+            assert task.requires.compaction_events is not None, task.id
+            assert (task.requires.compaction_events.min or 0) >= 1, task.id
+        if task.category == "permissioning":
+            assert task.requires.denied_calls is not None, task.id
+            assert (task.requires.denied_calls.min or 0) >= 1, task.id
+        if task.category == "recovery":
+            assert task.recovery is not None, f"{task.id} never gets killed"
+        if task.category == "cost":
+            bounded = task.requires.steps or task.requires.total_tokens
+            assert bounded is not None and bounded.max is not None, task.id
 
 
 # --- end to end -----------------------------------------------------------
@@ -188,3 +272,34 @@ def test_the_same_task_fails_for_an_agent_that_does_nothing(tmp_path: Path) -> N
     result = runner.run_task(task)
     assert not result.passed
     assert "the test suite passes" in result.verdict.reason
+
+
+def test_every_task_file_is_tracked_by_git() -> None:
+    """A fixture the repository is not carrying is a task that only works here.
+
+    `.gitignore` swallowed a fixture's `.env` exactly once: the suite was green
+    on the machine that wrote it and red on a fresh clone, because the sandbox
+    the graders saw was missing a file. The pattern generalises to anything the
+    ignore file matches — `build/`, `dist/`, `*.sqlite3` — and a task fixture is
+    data that has to survive a clone verbatim.
+    """
+    repo = SUITE.parent
+    if not (repo / ".git").exists():  # pragma: no cover - installed copies have no repo
+        pytest.skip("not a git checkout")
+
+    tracked = set(
+        subprocess.run(
+            ["git", "ls-files", "tasks"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
+    )
+    on_disk = {
+        p.relative_to(repo).as_posix()
+        for p in SUITE.rglob("*")
+        if p.is_file() and "__pycache__" not in p.parts
+    }
+    untracked = sorted(on_disk - tracked)
+    assert not untracked, f"task files not committed, so a fresh clone lacks them: {untracked}"

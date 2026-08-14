@@ -1,0 +1,47 @@
+{
+  "id": "cost-small-fix-stays-cheap",
+  "category": "cost",
+  "description": "A one-line fix that must not cost twenty steps.",
+  "max_steps": 12,
+  "timeout_s": 600.0,
+  "budget": {
+    "max_context_tokens": 60000,
+    "reserve_output_tokens": 4000
+  },
+  "graders": [
+    {
+      "name": "endstate.evals.graders:command_succeeds",
+      "args": {
+        "command": "python -m unittest discover -s tests -t . -q",
+        "name": "the test suite passes",
+        "timeout_s": 120
+      }
+    },
+    {
+      "name": "endstate.evals.graders:files_unchanged",
+      "args": {
+        "paths": [
+          "tests/test_convert.py"
+        ]
+      }
+    },
+    {
+      "name": "endstate.evals.graders:no_new_skips",
+      "args": {}
+    },
+    {
+      "name": "endstate.evals.graders:changed_paths_within",
+      "args": {
+        "allowed": [
+          "units/*",
+          "*.md"
+        ]
+      }
+    }
+  ],
+  "requires": {
+    "steps": {
+      "max": 8
+    }
+  }
+}

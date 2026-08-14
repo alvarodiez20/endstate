@@ -27,7 +27,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from endstate.agent.context import TokenBudget
 
@@ -85,7 +85,21 @@ class Verdict(BaseModel):
         return cls(passed=True, checks=checks)
 
     def merged_with(self, other: Verdict) -> Verdict:
-        return Verdict.from_checks([*self.checks, *other.checks])
+        """Conjunction of two verdicts, keeping every check from both.
+
+        `passed` is conjoined explicitly rather than recomputed from the merged
+        checks, because a verdict can fail while carrying none: a grader that
+        raised reports a reason and an empty list. Recomputing would turn that
+        into a pass — the worst possible direction for a failure to be lost in.
+        """
+        checks = [*self.checks, *other.checks]
+        reasons = [v.reason for v in (self, other) if not v.passed and v.reason]
+        reasons += [c.name for c in checks if not c.passed]
+        return Verdict(
+            passed=self.passed and other.passed,
+            reason="; ".join(dict.fromkeys(reasons)),
+            checks=checks,
+        )
 
     @property
     def failed_checks(self) -> list[Check]:
@@ -100,8 +114,104 @@ class GraderSpec(BaseModel):
     the whole design rests on.
     """
 
+    model_config = {"extra": "forbid"}
+
     name: str
     args: dict[str, Any] = Field(default_factory=dict)
+
+
+class Bound(BaseModel):
+    """An inclusive range. Either end may be left out.
+
+    Unknown keys are refused. A `{"minimum": 1}` typo would otherwise parse as a
+    bound with no ends, which passes for *any* value — so the requirement would
+    read as asserted in the task file and assert nothing at all. That is the
+    exact failure this whole design is meant to rule out, so it is an error.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    min: int | None = None
+    max: int | None = None
+
+    def check(self, value: int, label: str) -> Check:
+        passed = (self.min is None or value >= self.min) and (self.max is None or value <= self.max)
+        return Check(name=f"{label} {self}", passed=passed, detail=f"was {value}")
+
+    def __str__(self) -> str:
+        if self.min is not None and self.max is not None:
+            return f"is {self.min}" if self.min == self.max else f"is {self.min}-{self.max}"
+        if self.min is not None:
+            return f"is at least {self.min}"
+        if self.max is not None:
+            return f"is at most {self.max}"
+        return "is anything"
+
+
+class RunRequirements(BaseModel):
+    """Assertions about the *run* that the filesystem cannot answer.
+
+    Three of the four differentiating categories need one of these. "The task
+    completed **and** compaction fired at least once" is the whole point of a
+    long-horizon task — a run that finished without ever compacting did not test
+    compaction, and passing it would be a lie about coverage. But
+    `compaction_events` is not a property of the sandbox, so no grader can see
+    it without being handed something other than the sandbox.
+
+    Rather than widen the grader signature, requirements are evaluated by the
+    **runner** and conjoined with the grader's verdict. That keeps
+    `grade(sandbox) -> Verdict` exactly as narrow as it was, and the reason it is
+    safe is the shape of this class: every field is a typed counter the harness
+    recorded itself — policy decisions, compaction events, token totals. There is
+    no field here that can reach message content, and adding one would be a
+    visible change to this model rather than a quiet argument in a task file.
+
+    `extra="forbid"` is what makes that last sentence true rather than merely
+    intended: a manifest naming `final_text` is rejected at load time instead of
+    being silently dropped.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    compaction_events: Bound | None = None
+    denied_calls: Bound | None = None
+    unsettled_calls: Bound | None = None
+    steps: Bound | None = None
+    input_tokens: Bound | None = None
+    output_tokens: Bound | None = None
+    total_tokens: Bound | None = None
+    stop_reason: str | None = None
+
+    def check(self, counters: dict[str, int], stop_reason: str) -> list[Check]:
+        """Every requirement, as individually reported checks."""
+        checks: list[Check] = []
+        for field, bound in self:
+            if field == "stop_reason" or bound is None:
+                continue
+            assert isinstance(bound, Bound)
+            checks.append(bound.check(counters[field], field.replace("_", " ")))
+        if self.stop_reason is not None:
+            checks.append(
+                Check(
+                    name=f"stop reason is {self.stop_reason}",
+                    passed=stop_reason == self.stop_reason,
+                    detail=f"was {stop_reason}",
+                )
+            )
+        return checks
+
+
+class Recovery(BaseModel):
+    """Kill the run partway through, then resume it.
+
+    `crash_at_call` counts tool calls across the whole run, not steps, because
+    the interesting kill points are inside a batch. `after_side_effect` picks the
+    window: False is the honest kill where the work never happened, True is the
+    irreducible one where it happened and nothing recorded it.
+    """
+
+    crash_at_call: int
+    after_side_effect: bool = False
 
 
 class Task(BaseModel):
@@ -116,6 +226,8 @@ class Task(BaseModel):
     max_steps: int = 25
     timeout_s: float = 300.0
     budget: TokenBudget = Field(default_factory=TokenBudget)
+    requires: RunRequirements = Field(default_factory=RunRequirements)
+    recovery: Recovery | None = None
     holdout: Path | None = None
     solution: Path | None = None
     root: Path | None = None
@@ -150,7 +262,12 @@ def load_task(directory: Path) -> Task:
     if not prompt:
         raise TaskError(f"{directory}: no prompt, in {PROMPT_FILE} or in {TASK_FILE}")
 
-    graders = [GraderSpec(**g) for g in data.get("graders", [])]
+    try:
+        graders = [GraderSpec(**g) for g in data.get("graders", [])]
+        requires = RunRequirements(**data.get("requires", {}))
+        recovery = Recovery(**data["recovery"]) if "recovery" in data else None
+    except ValidationError as exc:
+        raise TaskError(f"{manifest}: {exc}") from exc
     if not graders:
         raise TaskError(f"{directory}: a task with no graders cannot pass or fail")
 
@@ -170,6 +287,8 @@ def load_task(directory: Path) -> Task:
         max_steps=int(data.get("max_steps", 25)),
         timeout_s=float(data.get("timeout_s", 300.0)),
         budget=TokenBudget(**data["budget"]) if "budget" in data else TokenBudget(),
+        requires=requires,
+        recovery=recovery,
         holdout=holdout if holdout.is_dir() else None,
         solution=solution if solution.is_dir() else None,
         root=directory,

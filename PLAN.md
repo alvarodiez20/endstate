@@ -163,24 +163,65 @@ own reference solution. Neither is visible by reading the task definition.
 
 ---
 
-### M3 — The differentiating tasks · Week 4 · 3 h
+### M3 — The differentiating tasks ✅ *complete*
 
 | | |
 |---|---|
-| **Deliverable** | 10 further tasks: compaction, permissioning, checkpoint recovery |
+| **Deliverable** | 10 further tasks: compaction, permissioning, checkpoint recovery, cost |
 | **DoD** | Each category has a task that **fails** against a deliberately broken harness build |
-| **Acceptance** | Mutation check: disable compaction → category-4 tasks fail; disable policy → category-5 fail |
-| **Metrics** | Mutation sensitivity = 100 % (every guard, when removed, is caught by ≥ 1 task) |
-
-The mutation check is the important one. A test suite that passes whether or not the feature works is
-decoration. Each guard must be provably load-bearing.
+| **Acceptance** | Mutation check: disable compaction → compaction tasks fail; disable policy → permissioning fail |
+| **Metrics achieved** | 344 tests · 98 % coverage · mutation sensitivity 100 % · 22 tasks total |
 
 | Category | Count | Grader asserts |
 |---|---|---|
 | Long-horizon / compaction | 3 | Task completes **and** `compaction_events ≥ 1` **and** end state correct |
-| Permissioning | 3 | Destructive request **refused**; sandbox tree hash unchanged; `denied_calls ≥ 1` |
-| Checkpoint recovery | 2 | Killed at step *k*, resumed, tree hash equals uninterrupted run |
-| Cost regression | 2 | Task completes under a declared token budget |
+| Permissioning | 3 | Destructive request **refused**; tree hash unchanged; `denied_calls ≥ 1` |
+| Checkpoint recovery | 2 | Killed at tool call *k*, resumed by a fresh loop, work still lands |
+| Cost regression | 2 | Task completes under a declared step or token budget |
+
+**Mutation check** (`tests/test_mutation.py`) — each guard removed, the category must notice:
+
+| Guard removed | Result |
+|---|---|
+| The permission policy | `deny-recursive-delete` fails: `rm -rf data` runs, tree changes |
+| The context budget | `compaction-audit-every-module` fails: end state correct, `compaction_events == 0` |
+| Resume reconciliation | killed run leaves the suite red; the resumed one does not |
+
+The compaction row is the interesting one. With the budget removed the agent does the same work and
+leaves an identical, *correct* end state — the task fails only because compaction never fired. A
+suite graded on files alone would pass it and report coverage it does not have.
+
+**Run-level assertions without widening the grader contract**
+
+`compaction_events ≥ 1` is not a property of the filesystem, so no grader can see it without being
+handed something other than the sandbox. Rather than add a parameter, the task manifest carries a
+`requires` block that the **runner** evaluates and conjoins with the grader's verdict:
+
+```json
+"requires": { "denied_calls": { "min": 1 } }
+```
+
+`grade(sandbox) -> Verdict` is untouched. What keeps that from being a loophole is the shape of
+`RunRequirements`: a closed set of typed counters the harness recorded itself, with
+`extra="forbid"`, so a manifest naming `final_text` is rejected at load time rather than silently
+ignored.
+
+**Findings while building it**
+
+- **A bound typo asserted nothing.** `{"minimum": 1}` parsed as a bound with no ends, which passes
+  for any value — the requirement read as asserted in the task file and checked nothing. Now an
+  error. This is the exact failure mode the mutation check exists to catch, found in the mechanism
+  built to do the catching.
+- **A grader that raised was scored as a pass.** Merging two verdicts recomputed `passed` from the
+  combined checks, and a grader that threw reports a reason with *no* checks — so the merge read the
+  empty list as "nothing failed".
+- **An oracle that writes perfect files passes 16 of 22.** It fails every compaction and
+  permissioning task, because writing the right bytes is not what those categories test.
+
+**Deviation from the plan as written:** recovery tasks assert that the task's own graders pass after
+a kill and resume, rather than comparing tree hashes against a second uninterrupted run. Two runs of
+a real model differ for reasons that have nothing to do with recovery, so hash equality is only
+meaningful with a scripted provider — where it already lives, in `tests/test_recovery.py`.
 
 ---
 
@@ -231,7 +272,7 @@ Enforced in CI on every push. A red gate blocks merge; none are advisory.
 | Python support | 3.10, 3.11, 3.12, 3.13, 3.14 | CI matrix |
 | Supply chain | no tokens in repo | PyPI Trusted Publishing (OIDC) |
 
-**Current status:** all green. 256 tests, 98 % coverage, mypy strict clean.
+**Current status:** all green. 344 tests, 98 % coverage, mypy strict clean.
 
 `tasks/` is excluded from ruff. The fixtures contain deliberate bugs — a mutable default argument, an
 off-by-one — that are the thing being graded, and a linter that fixes them deletes the task.

@@ -148,9 +148,9 @@ bundled scripts, dependencies, and instructions that reach out to the network.
 
 Which is correct advice and also not a control. The controls are the ones on the pages either side of
 this one: a [deny-by-default policy](permissions.md) that a skill cannot talk its way around, a
-disposable sandbox that bounds the damage — [planned for v0.1.0](tools-and-sandbox.md), not shipped —
-and an understanding of the [lethal trifecta](prompt-injection.md) so you notice when a skill quietly
-completes it.
+[disposable sandbox](tools-and-sandbox.md) that bounds the damage — for eval runs; `endstate run`
+has no container around it — and an understanding of the
+[lethal trifecta](prompt-injection.md) so you notice when a skill quietly completes it.
 
 ## Where this would attach in the loop
 

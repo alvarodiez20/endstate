@@ -136,10 +136,14 @@ adaptively.
 
 Three layers, in order of how much they are worth:
 
-**1. The disposable container** *(planned for v0.1.0)*. The real control, and it does not exist yet.
-It bounds [B] — there is nothing sensitive in the sandbox — and it bounds the blast radius of [C],
-because state changed inside a container that gets destroyed is state that did not persist. Until it
-ships, an `endstate` run on a laptop has layers 2 and 3 and nothing else. See
+**1. The disposable container.** The real control. It bounds [B] — there is nothing sensitive in the
+sandbox — and it bounds the blast radius of [C], because state changed inside a container that gets
+destroyed is state that did not persist. Network egress is off by default, which closes [C] outright
+for the common case.
+
+It exists for **eval runs**, which is not the same as existing for you. `endstate run` on a laptop
+works in whatever directory you point it at and has layers 2 and 3 and nothing else. The container
+is `endstate eval`'s boundary; there is no container around the CLI you use day to day. See
 [Tools and the sandbox](tools-and-sandbox.md).
 
 **2. `SECRET_EXFIL` in the default policy.** The deny family that catches `curl`/`wget`/`nc` in the

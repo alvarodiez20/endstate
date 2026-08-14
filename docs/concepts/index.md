@@ -81,7 +81,7 @@ what it persists, and how you check afterwards that it did the right thing.
 
 !!! note "A note on honesty in these docs"
 
-    The harness is at v0.0.1 and the eval runner is not built yet. Where a page describes something
+    The harness and the eval runner are both built and on PyPI. Where a page describes something
     that exists, it links to the source file. Where it describes something planned, it says
     **planned** and points at the milestone in the
     [engineering plan](https://github.com/alvarodiez20/endstate/blob/main/PLAN.md). No page will

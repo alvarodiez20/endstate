@@ -22,10 +22,12 @@ the destructive command? Did it survive being killed halfway through?
 pip install endstate
 ```
 
-!!! warning "Status: v0.0.1, in development"
+!!! info "Status: v0.1.0 on PyPI"
 
-    The harness works. The eval runner lands in v0.1.0. These docs describe what exists today and
-    say so explicitly when something is planned rather than shipped.
+    The harness and the eval runner both work: `endstate eval --suite tasks/` runs 22 tasks in
+    disposable containers and grades what they left behind. The published benchmark across hosted
+    and self-hosted models is next. These docs describe what exists today and say so explicitly when
+    something is planned rather than shipped.
 
 <div class="endstate-diagram-scroll">
   <iframe class="endstate-diagram" src="assets/diagrams/hero.html"

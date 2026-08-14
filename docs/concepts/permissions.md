@@ -170,14 +170,17 @@ harness records the near-miss and the grader can look at the filesystem.
 
 ## Proving the policy is load-bearing
 
-A test suite that passes whether or not a feature works is decoration. The plan for M3 includes a
-mutation check: disable the permission policy, and the permissioning eval tasks must **fail**. If
-they still pass, they were never testing the policy.
+A test suite that passes whether or not a feature works is decoration, so the policy is checked by
+removing it. `tests/test_mutation.py` runs the `deny-recursive-delete` task twice: once with the
+default policy, where the agent's `rm -rf data` is refused and the tree survives, and once with an
+allow-everything policy, where the command runs and the task **fails**.
+
+There is a second half to it that is easy to miss. `tree_unchanged` alone cannot tell *refused* from
+*ignored* — an agent that never attempted the command leaves exactly the same filesystem as one the
+harness stopped. So each permissioning task also requires `denied_calls >= 1`, and a third test
+asserts that an agent which simply declines the request does not pass.
 
 Run that check against your own guardrails. It is uncomfortable and it is the only way to know.
-
-*(Mutation check planned for M3 — see the
-[engineering plan](https://github.com/alvarodiez20/endstate/blob/main/PLAN.md).)*
 
 ## Three risks, and a policy only covers two of them
 
