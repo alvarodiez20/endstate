@@ -1,6 +1,86 @@
 # CHANGELOG
 
 
+## v0.2.0 (2026-08-14)
+
+### Features
+
+- Add the four differentiating task categories and the mutation check
+  ([#12](https://github.com/alvarodiez20/endstate/pull/12),
+  [`8bbbbbd`](https://github.com/alvarodiez20/endstate/commit/8bbbbbdd589590099518a122f0a5a37036da80ea))
+
+Closes M3. Ten more tasks — compaction, permissioning, recovery, cost — bringing the suite to
+  **22**, which also clears S2's "≥ 20 tasks".
+
+These are the categories that break real deployments and that almost nothing tests. Each is a
+  **conjunction**: the work *and* the guard.
+
+## Asserting on the run without widening the grader contract
+
+`compaction_events >= 1` is not a property of the filesystem. Neither is "the policy refused
+  something" — an agent that ignored the request leaves exactly the same tree as one the harness
+  stopped. The obvious fix is handing the grader the run result, which reopens the door the
+  signature closed.
+
+Instead the *task* declares what the run must have done, and the **runner** checks it:
+
+```json "requires": { "denied_calls": { "min": 1 } } ```
+
+`grade(sandbox) -> Verdict` is untouched. What stops this being a loophole by another name:
+  `RunRequirements` is a closed set of typed counters the harness recorded itself — policy
+  decisions, compaction events, token totals — with unknown keys **rejected at load time**. A
+  manifest naming `final_text` is an error, not a silently ignored field.
+
+## The mutation check
+
+`tests/test_mutation.py`. Each guard removed on purpose; the category must notice.
+
+| Guard removed | Result | | --- | --- | | The permission policy | `deny-recursive-delete` fails —
+  `rm -rf data` runs, tree changes | | The context budget | `compaction-audit-every-module` fails —
+  end state correct, `compaction_events == 0` | | Resume reconciliation | the killed run leaves the
+  suite red; the resumed one does not |
+
+The compaction row is the one worth staring at. With the budget removed the agent does the same work
+  and leaves an **identical, correct** end state. The task fails only because compaction never fired
+  — exactly the coverage claim a file-only grader would get wrong.
+
+## Two bugs found in the machinery built to find bugs
+
+Both were live, both silent, both in the direction that loses failures:
+
+- **A bound typo asserted nothing.** `{"minimum": 1}` parsed as a bound with no ends, which passes
+  for *any* value. The requirement read as asserted in the task file and checked nothing. Unknown
+  keys are now refused. - **A grader that raised scored as a pass.** Merging two verdicts recomputed
+  `passed` from the combined checks — and a grader that threw reports a reason with no checks, so
+  the merge read the empty list as "nothing failed".
+
+## Does the suite discriminate?
+
+A scripted oracle that writes byte-perfect solutions for all 22 tasks passes **16**. It fails every
+  compaction and permissioning task, because producing the right files is not what those categories
+  measure. The recovery tasks pass, which means the kill-and-resume path genuinely ran.
+
+The existing both-directions check was extended to cover requirements, so all 22 tasks are still
+  bracketed between "did nothing" and "did it perfectly".
+
+## Verification
+
+- **344 tests, 98% coverage**, ruff / `ruff format` / `mypy --strict` / docs `--strict` clean - All
+  22 tasks run in real containers (Docker 29.7.2), zero harness errors
+
+## Deviation from the plan
+
+Recovery tasks assert that the task's own graders pass after a kill and resume, rather than
+  comparing tree hashes against a second uninterrupted run. Two runs of a real model differ for
+  reasons that have nothing to do with recovery, so hash equality is only meaningful with a scripted
+  provider — where it already lives, in `tests/test_recovery.py`.
+
+## Not done here
+
+The flake-rate metric still needs a real model run. Both determinism checks use a scripted provider,
+  which proves the harness adds no variance but says nothing about model variance.
+
+
 ## v0.1.0 (2026-08-13)
 
 ### Bug Fixes
