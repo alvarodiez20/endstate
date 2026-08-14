@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import itertools
 import json
 from pathlib import Path
 
 import pytest
 
-from endstate.evals.runner import EvalRunner, TaskResult
+from endstate.evals.report import flake_rate, render_flake_markdown
+from endstate.evals.runner import EvalRunner, SuiteResult, TaskResult
 from endstate.evals.sandbox import LocalSandbox, Sandbox, SandboxError
 from endstate.evals.task import Task, TaskError, Verdict, discover_tasks, load_task
 from endstate.providers.fake import FakeProvider
@@ -367,3 +369,47 @@ def test_budget_and_limits_come_from_the_manifest(tmp_path: Path) -> None:
     assert loaded.max_steps == 7
     assert loaded.timeout_s == 12.5
     assert loaded.budget.max_context_tokens == 1234
+
+
+# --- repeated runs --------------------------------------------------------
+
+
+def test_repeated_runs_of_a_flaky_agent_are_caught(tmp_path: Path) -> None:
+    """The measurement has to fail on a suite that deserves it.
+
+    A determinism check that only ever reports 0% is the same failure the whole
+    eval suite is built to avoid: a number that looks like evidence and is not.
+    So this drives a provider that fixes the file on odd attempts and shrugs on
+    even ones, and asserts the rate comes back at 100%.
+    """
+    task = make_task(tmp_path / "tasks", graders=VALUE_GRADER)
+    attempts = itertools.count()
+
+    def flaky(_task: Task) -> FakeProvider:
+        return FakeProvider(
+            list(WRITE_THE_FIX)
+            if next(attempts) % 2 == 0
+            else [Response(message=Message(role="assistant", content="looks fine"))]
+        )
+
+    def suite_in(box: Path) -> SuiteResult:
+        return EvalRunner(
+            provider_factory=flaky,
+            sandbox_factory=lambda t: LocalSandbox(t.fixture, box),
+        ).run_suite([task])
+
+    suites = [suite_in(tmp_path / f"box-{run}") for run in range(2)]
+
+    assert [s.results[0].passed for s in suites] == [True, False]
+    assert flake_rate(suites) == 1.0
+    assert "did not agree with themselves" in render_flake_markdown(suites)
+
+
+def test_repeated_runs_of_a_stable_agent_are_clean(tmp_path: Path) -> None:
+    task = make_task(tmp_path / "tasks", graders=VALUE_GRADER)
+    suites = [
+        runner_for(tmp_path / f"run-{run}", WRITE_THE_FIX).run_suite([task]) for run in range(3)
+    ]
+
+    assert flake_rate(suites) == 0.0
+    assert len({s.verdict_vector for s in suites}) == 1

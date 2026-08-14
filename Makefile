@@ -1,4 +1,4 @@
-.PHONY: help install test lint typecheck check build clean docs docs-build gpu-up gpu-down bench
+.PHONY: help install test lint typecheck check build clean docs docs-build gpu-up gpu-down bench determinism
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -44,3 +44,6 @@ gpu-up:  ## Create the GPU node pool
 
 bench:  ## Run the eval suite against every configured provider
 	uv run endstate eval --suite tasks/ --out benchmarks/
+
+determinism:  ## Run the suite three times and report the flake rate
+	uv run endstate eval --suite tasks/ --repeat 3 --out benchmarks/

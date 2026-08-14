@@ -21,15 +21,20 @@ Grid: 32×32, stroke 2.5, single flat color. No gradients, no rasters inside the
     png/endstate-lockup-accent.png   256px-tall lockup, node in #0f766e
     png/endstate-lockup-transparent.png  256px-tall lockup, black on transparent
     png/og-image-1280x640.png        social preview
-    svg/endstate-thesis.svg          animated: the transcript discarded, the sandbox graded
+    svg/endstate-hero.svg            animated: the loop, the primitives, and the end-state verdict
 
-## endstate-thesis.svg
+## endstate-hero.svg
 
 The one animated asset, used at the top of the README. It is an animated SVG rather than one of the
 `docs/assets/diagrams/` files because those are React in an iframe, and neither GitHub nor PyPI will
 run one — both will render an `<img>` pointing at an SVG, and both animate it.
 
-Two things in it are deliberate and easy to break:
+Only the loop row moves: a single highlight rect walks the seven stages on a 9.8s cycle, and the
+return path brightens as it wraps. Everything below it — including the verdict, which is the whole
+argument — is static on purpose. A reader glancing at a README should never catch the payload
+mid-reveal.
+
+Three things in it are deliberate and easy to break:
 
 - A `@media (prefers-color-scheme: dark)` block inside the file supplies the dark palette. Browsers
   evaluate that even when the SVG is loaded as an `<img>`, so one file covers both themes with no

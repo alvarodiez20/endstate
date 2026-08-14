@@ -23,13 +23,17 @@ from endstate.agent.tools import default_tools
 from endstate.agent.tools.base import ToolContext
 from endstate.evals import (
     DEFAULT_IMAGE,
+    FLAKE_THRESHOLD,
     DockerSandbox,
     EvalRunner,
     LocalSandbox,
     Sandbox,
     Task,
+    determinism_established,
     discover_tasks,
     docker_available,
+    flake_rate,
+    render_flake_markdown,
     write_report,
 )
 from endstate.telemetry.cost import CostAccountant, PriceTable
@@ -123,6 +127,9 @@ def eval(
     category: list[str] = typer.Option([], "--category", "-c", help="Run only these categories."),
     prices: Path | None = typer.Option(None, "--prices", help="JSON price table."),
     out: Path | None = typer.Option(None, "--out", help="Directory to write the report into."),
+    repeat: int = typer.Option(
+        1, "--repeat", help="Run the suite N times and report the flake rate."
+    ),
 ) -> None:
     """Run an eval suite and report on the end state of each sandbox."""
     tasks = discover_tasks(suite)
@@ -146,19 +153,28 @@ def eval(
             return LocalSandbox(task.fixture)
         return DockerSandbox(task.fixture, image=image, network=network)
 
-    runner = EvalRunner(
-        provider_factory=lambda task: _provider(model, base_url),
-        sandbox_factory=make_sandbox,
-        prices=price_table,
-        jobs=jobs,
-        provider_name="anthropic" if model.startswith("claude") else base_url or "openai",
-        sandbox_name=f"{sandbox}:{image}" if sandbox == "docker" else "local",
-        on_result=lambda r: console.print(
-            f"[{'green' if r.passed else 'red'}]{'pass' if r.passed else 'fail'}[/] "
-            f"{escape(r.task_id)} ({r.steps} steps, {r.wall_clock_s:.1f}s)"
-        ),
-    )
-    result = runner.run_suite(tasks)
+    def build_runner() -> EvalRunner:
+        return EvalRunner(
+            provider_factory=lambda task: _provider(model, base_url),
+            sandbox_factory=make_sandbox,
+            prices=price_table,
+            jobs=jobs,
+            provider_name="anthropic" if model.startswith("claude") else base_url or "openai",
+            sandbox_name=f"{sandbox}:{image}" if sandbox == "docker" else "local",
+            on_result=lambda r: console.print(
+                f"[{'green' if r.passed else 'red'}]{'pass' if r.passed else 'fail'}[/] "
+                f"{escape(r.task_id)} ({r.steps} steps, {r.wall_clock_s:.1f}s)"
+            ),
+        )
+
+    # A fresh runner per repetition. Sharing one would accumulate every run's
+    # tokens into a single accountant and report three runs' cost as one.
+    suites = []
+    for attempt in range(max(1, repeat)):
+        if repeat > 1:
+            console.print(f"[bold]run {attempt + 1} of {repeat}[/]")
+        suites.append(build_runner().run_suite(tasks))
+    result = suites[-1]
 
     table = Table(title=f"{escape(result.model or model)} · {len(result.results)} tasks")
     table.add_column("task")
@@ -175,9 +191,28 @@ def eval(
     console.print(table)
     console.print(f"pass rate: {result.pass_rate:.0%}")
 
+    if len(suites) > 1:
+        rate = flake_rate(suites)
+        colour = "green" if rate <= FLAKE_THRESHOLD else "red"
+        console.print(
+            f"flake rate over {len(suites)} runs: [{colour}]{rate:.1%}[/] "
+            f"(threshold {FLAKE_THRESHOLD:.0%})"
+        )
+        console.print(
+            "verdict vectors identical: "
+            + ("yes" if len({s.verdict_vector for s in suites}) == 1 else "[red]no[/]")
+        )
+        established, why_not = determinism_established(suites)
+        if not established:
+            console.print(f"[red]determinism not established[/] — {escape(why_not)}")
+
     if out is not None:
         markdown_path, json_path = write_report(result, out, price_table)
         console.print(f"wrote {markdown_path} and {json_path}")
+        if len(suites) > 1:
+            flake_path = markdown_path.with_name(markdown_path.stem + "-flake.md")
+            flake_path.write_text(render_flake_markdown(suites, FLAKE_THRESHOLD), encoding="utf-8")
+            console.print(f"wrote {flake_path}")
 
     # A failing task is data. A harness error is a broken run, and exiting 0 on
     # one would let a suite that never really executed look like a clean sweep.

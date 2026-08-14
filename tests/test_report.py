@@ -6,7 +6,18 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
-from endstate.evals.report import median, percentile, render_markdown, total_cost, write_report
+import pytest
+
+from endstate.evals.report import (
+    FLAKE_THRESHOLD,
+    flake_rate,
+    median,
+    percentile,
+    render_flake_markdown,
+    render_markdown,
+    total_cost,
+    write_report,
+)
 from endstate.evals.runner import SuiteResult, TaskResult
 from endstate.evals.task import Check, Verdict
 from endstate.telemetry.cost import ModelPrice, PriceTable
@@ -141,3 +152,54 @@ def test_the_filename_slug_survives_an_awkward_model_name(tmp_path: Path) -> Non
 
     unnamed, _ = write_report(SuiteResult(), tmp_path / "c")
     assert unnamed.name.endswith("-unknown.md")
+
+
+# --- determinism across repeated runs -------------------------------------
+
+
+def repeated(*runs: list[bool]) -> list[SuiteResult]:
+    """One SuiteResult per run, from pass/fail vectors over the same task ids."""
+    return [
+        SuiteResult(
+            model="fake-1",
+            results=[result(f"task-{i}", passed=outcome) for i, outcome in enumerate(outcomes)],
+        )
+        for outcomes in runs
+    ]
+
+
+def test_a_stable_suite_has_no_flake() -> None:
+    suites = repeated([True, False, True], [True, False, True], [True, False, True])
+    assert flake_rate(suites) == 0.0
+    assert len({s.verdict_vector for s in suites}) == 1
+
+
+def test_one_task_disagreeing_with_itself_is_the_flake_rate() -> None:
+    """One of three tasks flipped, so a third of the suite is untrustworthy."""
+    suites = repeated([True, True, True], [True, False, True])
+    assert flake_rate(suites) == pytest.approx(1 / 3)
+
+
+def test_a_single_run_reports_no_rate() -> None:
+    """Nothing has been compared yet, and 0% would imply otherwise."""
+    assert flake_rate(repeated([True, False])) == 0.0
+    assert flake_rate([]) == 0.0
+
+
+def test_the_flake_report_names_the_unstable_tasks() -> None:
+    markdown = render_flake_markdown(repeated([True, True], [True, False]))
+    assert "Flake rate:** 50.0% (OVER the 5% threshold)" in markdown
+    assert "did not agree with themselves" in markdown
+    assert "| `task-1` | pass fail |" in markdown
+    assert "Identical verdict vectors:** no" in markdown
+
+
+def test_the_flake_report_says_so_when_nothing_moved() -> None:
+    markdown = render_flake_markdown(repeated([True, False], [True, False]))
+    assert "Every task returned the same verdict in every run." in markdown
+    assert "within the 5% threshold" in markdown
+    assert "Identical verdict vectors:** yes" in markdown
+
+
+def test_the_threshold_is_the_one_the_plan_asks_for() -> None:
+    assert FLAKE_THRESHOLD == 0.05
